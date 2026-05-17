@@ -2,6 +2,11 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
+    <!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#059669">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="درب المسلم">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <title>درب المسلم</title>
     <script src="tailwind.min.js"></script>
@@ -1784,6 +1789,13 @@ function init() {
 
 init();
 fetchSurahs();
+</script>
+    <script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./service-worker.js')
+      .then(() => console.log('✅ Service Worker مسجّل'))
+      .catch(e => console.log('❌ خطأ:', e));
+  }
 </script>
 </body>
 </html>
