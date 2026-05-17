@@ -1791,12 +1791,12 @@ init();
 fetchSurahs();
 </script>
     <script>
-  // تسجيل Service Worker ليعمل التطبيق بدون إنترنت
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js')
+      // أضفنا رقم إصدار في نهاية الرابط لإجبار المتصفح على قراءته كملف جديد
+      navigator.serviceWorker.register('./sw.js?v=2')
         .then(registration => {
-          console.log('تم تسجيل Service Worker بنجاح:', registration.scope);
+          console.log('تم تسجيل Service Worker بنجاح');
         })
         .catch(error => {
           console.log('فشل تسجيل Service Worker:', error);
