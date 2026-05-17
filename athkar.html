@@ -59,13 +59,18 @@
         }
 
         /* ==================== الصفحات والانيميشن ==================== */
-        .page {
-            display: none;
-            min-height: 100vh;
-            padding-bottom: 140px;
-            position: relative;
-            z-index: 1;
-        }
+        /* استبدل كلاس .page القديم بهذا الكود */
+.page {
+    display: none;
+    min-height: 100vh;
+    padding-bottom: 140px;
+    position: relative;
+    z-index: 1;
+    width: 100%;               /* حماية: إجبار الصفحة على أخذ العرض الكامل */
+    overflow-x: hidden;         /* منع أي عنصر من إظهار شريط السحب الجانبي */
+    box-sizing: border-box;
+    will-change: transform, opacity; /* تحفيز كرت الشاشة لإنهاء التقطيع */
+}
         .page.active { display: block; }
 
         /* انيميشن سحب ناعم مثل iOS - دخول من اليسار */
@@ -538,6 +543,13 @@
         html.dark .time-display-preview { color: #34d399; }
 
         /* ==================== صفحات السور - ترقيم الصفحات ==================== */
+        .quran-font {
+    font-family: 'Amiri', serif;
+    line-height: 2.3;
+    font-size: var(--font-size-quran);
+    word-wrap: break-word;      /* حماية إضافية تمنع النص من الخروج عن حدود الكرت */
+    white-space: normal;
+}
         .surah-page-btn {
             padding: 8px 18px;
             border-radius: 0.8rem;
@@ -874,7 +886,7 @@
 </div>
 
 <!-- ===================== التطبيق ===================== -->
-<div class="max-w-md mx-auto relative min-h-screen">
+<div class="w-full max-w-md mx-auto relative min-h-screen overflow-x-hidden px-1">
 
     <!-- الصفحة الرئيسية -->
     <div id="homePage" class="page active p-5">
