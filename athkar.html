@@ -1,1820 +1,1877 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <!-- PWA -->
+<meta charset="UTF-8">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#059669">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="درب المسلم">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-    <title>درب المسلم</title>
-    <script src="tailwind.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&family=Amiri&display=swap" rel="stylesheet">
-    <script>tailwind.config = { darkMode: 'class' }</script>
-    <style>
-        /* ==================== القاعدة الأساسية ==================== */
-        :root {
-            --green: #059669;
-            --green-dark: #064e3b;
-            --green-light: #ecfdf5;
-            --glass-light: rgba(255,255,255,0.55);
-            --glass-dark: rgba(17,24,39,0.55);
-            --font-size-quran: 1.25rem; /* حجم خط القرآن الافتراضي */
-        }
-        * { -webkit-tap-highlight-color: transparent; }
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>درب المسلم</title>
+<script src="tailwind.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&family=Amiri&display=swap" rel="stylesheet">
+<script>tailwind.config = { darkMode: 'class' }</script>
+<style>
+/* ══════════════════════════════════════════════
+   المتغيرات والقاعدة
+══════════════════════════════════════════════ */
+:root {
+  --green:        #059669;
+  --green-dark:   #064e3b;
+  --green-light:  #ecfdf5;
+  --font-quran:   1.3rem;
 
-        body {
-            font-family: 'Tajawal', sans-serif;
-            transition: background-color 0.4s;
-            background: linear-gradient(135deg, #f0fdf4 0%, #d1fae5 50%, #f3f4f6 100%);
-            background-attachment: fixed;
-            overflow-x: hidden;
-        }
-        html.dark body {
-            background: linear-gradient(135deg, #0f172a 0%, #064e3b 60%, #111827 100%);
-        }
-        .quran-font {
-            font-family: 'Amiri', serif;
-            line-height: 2.3;
-            font-size: var(--font-size-quran);
-        }
+  /* ألوان الزجاج */
+  --glass-bg:     rgba(255,255,255,0.55);
+  --glass-border: rgba(255,255,255,0.45);
+  --glass-shadow: 0 4px 20px rgba(5,150,105,0.08);
 
-        /* ==================== الكرات العائمة في الخلفية ==================== */
-        .bg-orbs { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
-        .orb {
-            position: absolute;
-            border-radius: 50%;
-            filter: blur(70px);
-            opacity: 0.18;
-            animation: orbFloat 12s ease-in-out infinite;
-        }
-        html.dark .orb { opacity: 0.10; }
-        .orb-1 { width: 350px; height: 350px; background: radial-gradient(circle, #34d399, #059669); top: -100px; right: -80px; animation-delay: 0s; }
-        .orb-2 { width: 280px; height: 280px; background: radial-gradient(circle, #6ee7b7, #064e3b); bottom: 100px; left: -60px; animation-delay: -4s; }
-        .orb-3 { width: 200px; height: 200px; background: radial-gradient(circle, #a7f3d0, #10b981); top: 40%; right: 20%; animation-delay: -8s; }
-        @keyframes orbFloat {
-            0%,100% { transform: translateY(0) scale(1); }
-            50% { transform: translateY(-30px) scale(1.07); }
-        }
+  /* تحسين الأداء: تعريف الانتقالات مركزياً */
+  --transition-fast:   0.2s ease;
+  --transition-normal: 0.3s cubic-bezier(0.25,0.46,0.45,0.94);
+  --transition-spring: 0.4s cubic-bezier(0.34,1.56,0.64,1);
+}
 
-        /* ==================== الصفحات والانيميشن ==================== */
-        /* استبدل كلاس .page القديم بهذا الكود */
+/* ══════════ إعادة تعيين مبسّطة ══════════ */
+*, *::before, *::after {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ══════════ الجسم - بدون background-attachment:fixed (سبب الثقل الأول) ══════════ */
+body {
+  font-family: 'Tajawal', sans-serif;
+  overflow-x: hidden;
+  /* استبدلنا background-attachment:fixed بـ pseudo-element ثابت */
+}
+
+/* خلفية ثابتة بكفاءة عبر pseudo-element واحد */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background: linear-gradient(135deg, #f0fdf4 0%, #d1fae5 50%, #f3f4f6 100%);
+  pointer-events: none;
+}
+html.dark body::before {
+  background: linear-gradient(135deg, #0f172a 0%, #064e3b 60%, #111827 100%);
+}
+
+/* ══════════ الكرات العائمة - مُحسَّنة للأداء ══════════ */
+/*
+  السبب الرئيسي للحرارة: filter:blur() على عناصر تتحرك باستمرار
+  الحل: نعزل كل كرة في طبقة GPU مستقلة بـ will-change + translateZ(0)
+  ونرفع الـ blur قليلاً ونقلل الـ opacity لتخفيف عبء الـ GPU
+*/
+.bg-orbs {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  overflow: hidden;
+  /* طبقة GPU مشتركة للحاوية */
+  transform: translateZ(0);
+}
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  /* تقليل blur من 70px إلى 50px: أقل عبئاً بنسبة كبيرة */
+  filter: blur(50px);
+  opacity: 0.13;
+  will-change: transform;
+  /* ترقية لطبقة GPU مستقلة لكل كرة */
+  transform: translateZ(0);
+  animation: orbFloat 14s ease-in-out infinite;
+}
+html.dark .orb { opacity: 0.08; }
+
+.orb-1 { width:320px; height:320px; background:radial-gradient(circle,#34d399,#059669); top:-80px; right:-60px; animation-delay:0s; }
+.orb-2 { width:250px; height:250px; background:radial-gradient(circle,#6ee7b7,#064e3b); bottom:80px; left:-50px; animation-delay:-5s; }
+.orb-3 { width:180px; height:180px; background:radial-gradient(circle,#a7f3d0,#10b981); top:45%; right:25%; animation-delay:-9s; }
+
+/* استخدام transform فقط (لا top/left) لمنع reflow */
+@keyframes orbFloat {
+  0%,100% { transform: translateZ(0) translateY(0) scale(1); }
+  50%      { transform: translateZ(0) translateY(-25px) scale(1.05); }
+}
+
+/* ══════════ الصفحات ══════════ */
 .page {
-    display: none;
-    min-height: 100vh;
-    padding-bottom: 140px;
-    position: relative;
-    z-index: 1;
-    width: 100%;               /* حماية: إجبار الصفحة على أخذ العرض الكامل */
-    overflow-x: hidden;         /* منع أي عنصر من إظهار شريط السحب الجانبي */
-    box-sizing: border-box;
-    will-change: transform, opacity; /* تحفيز كرت الشاشة لإنهاء التقطيع */
+  display: none;
+  min-height: 100vh;
+  padding-bottom: 130px;
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  /* GPU layer للصفحات أثناء الانيميشن فقط */
 }
-        .page.active { display: block; }
+.page.active   { display: block; }
+.page.will-animate { will-change: transform, opacity; }
 
-        /* انيميشن سحب ناعم مثل iOS - دخول من اليسار */
-        @keyframes slideInFromLeft {
-            0%   { opacity: 0; transform: translateX(-28px); }
-            100% { opacity: 1; transform: translateX(0); }
-        }
+@keyframes slideInLeft  { from { opacity:0; transform:translateX(-24px) } to { opacity:1; transform:translateX(0) } }
+@keyframes slideInRight { from { opacity:0; transform:translateX(24px)  } to { opacity:1; transform:translateX(0) } }
 
-        /* انيميشن رجوع - دخول من اليمين */
-        @keyframes slideInFromRight {
-            0%   { opacity: 0; transform: translateX(28px); }
-            100% { opacity: 1; transform: translateX(0); }
-        }
+.page.animate-in   { animation: slideInLeft  0.35s var(--transition-normal) both; }
+.page.animate-back { animation: slideInRight 0.35s var(--transition-normal) both; }
 
-        .page.animate-in {
-            animation: slideInFromLeft 0.38s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
-        }
+/* ══════════ البطاقة الخضراء ══════════ */
+.green-card {
+  background: linear-gradient(135deg, rgba(5,150,105,0.85), rgba(6,78,59,0.90));
+  backdrop-filter: blur(16px) saturate(1.3);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  border-radius: 2.5rem;
+  border: 1px solid rgba(255,255,255,0.15);
+  box-shadow: 0 8px 28px rgba(5,150,105,0.18);
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow var(--transition-normal), transform var(--transition-normal);
+}
+/* نمط الخلفية كـ SVG data-URI مدمج: أخف من ::before منفصل */
+.green-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M20 20h4v4h-4zm0-20h4v4h-4zM0 20h4v4H0zM0 0h4v4H0z'/%3E%3C/g%3E%3C/svg%3E");
+  pointer-events: none;
+}
 
-        .page.animate-back {
-            animation: slideInFromRight 0.38s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
-        }
+/* ══════════ بطاقات الأذكار ══════════ */
+.zekr-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  border-radius: 1.4rem;
+  padding: 18px;
+  border-right: 4px solid var(--green);
+  border-top: 1px solid var(--glass-border);
+  border-left: 1px solid rgba(255,255,255,0.25);
+  margin-bottom: 12px;
+  box-shadow: var(--glass-shadow);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+html.dark .zekr-card {
+  background: rgba(17,24,39,0.55);
+  border-top-color: rgba(255,255,255,0.07);
+  color: white;
+}
+/* hover فقط على الأجهزة التي تدعمه - توفير موارد الجوال */
+@media (hover: hover) {
+  .zekr-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(5,150,105,0.12); }
+}
 
-        /* ==================== بطاقات الزجاج ==================== */
-        .green-card {
-            background: linear-gradient(135deg, rgba(5,150,105,0.82), rgba(6,78,59,0.88));
-            backdrop-filter: blur(20px) saturate(1.4);
-            -webkit-backdrop-filter: blur(20px) saturate(1.4);
-            border-radius: 2.5rem;
-            border: 1px solid rgba(255,255,255,0.18);
-            box-shadow: 0 8px 32px rgba(5,150,105,0.18), inset 0 1px 0 rgba(255,255,255,0.15);
-            position: relative;
-            overflow: hidden;
-            /* توهج البطاقة الخضراء */
-            transition: box-shadow 0.4s ease, transform 0.3s ease;
-            cursor: default;
-        }
-        .green-card::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-            pointer-events: none;
-        }
-        /* طبقة التوهج المتحركة للبطاقة الخضراء */
-        .green-card::after {
-            content: '';
-            position: absolute;
-            inset: -3px;
-            border-radius: inherit;
-            background: radial-gradient(circle at center, rgba(52,211,153,0.45), transparent 70%);
-            opacity: 0;
-            transition: opacity 0.4s ease;
-            pointer-events: none;
-            z-index: -1;
-        }
-        .green-card:hover::after { opacity: 1; }
-        .green-card:hover {
-            box-shadow: 0 0 32px rgba(52,211,153,0.35), 0 8px 32px rgba(5,150,105,0.28);
-            transform: translateY(-2px);
-        }
+/* ══════════ أزرار الزجاج ══════════ */
+.glass-btn {
+  background: var(--glass-bg);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow), inset 0 1px 0 rgba(255,255,255,0.6);
+  transition: transform var(--transition-spring), box-shadow var(--transition-fast);
+}
+html.dark .glass-btn {
+  background: rgba(17,24,39,0.55);
+  border-color: rgba(255,255,255,0.08);
+}
+@media (hover: hover) {
+  .glass-btn:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 10px 28px rgba(5,150,105,0.16), inset 0 1px 0 rgba(255,255,255,0.6);
+  }
+}
+.glass-btn:active { transform: scale(0.96) !important; }
 
-        .zekr-card {
-            background: rgba(255,255,255,0.55);
-            backdrop-filter: blur(18px) saturate(1.3);
-            -webkit-backdrop-filter: blur(18px) saturate(1.3);
-            border-radius: 1.6rem;
-            padding: 20px;
-            border-right: 5px solid #059669;
-            border-top: 1px solid rgba(255,255,255,0.6);
-            border-left: 1px solid rgba(255,255,255,0.3);
-            margin-bottom: 14px;
-            box-shadow: 0 4px 20px rgba(5,150,105,0.08);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        html.dark .zekr-card {
-            background: rgba(17,24,39,0.55);
-            border-top-color: rgba(255,255,255,0.07);
-            color: white;
-        }
-        .zekr-card:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(5,150,105,0.13); }
+/* ══════════ شريط التنقل ══════════ */
+.nav-bar {
+  position: fixed;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 88%;
+  max-width: 380px;
+  background: rgba(255,255,255,0.65);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid rgba(255,255,255,0.45);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.09), inset 0 1px 0 rgba(255,255,255,0.7);
+  display: flex;
+  justify-content: space-around;
+  padding: 10px;
+  z-index: 1000;
+  border-radius: 2rem;
+  transition: transform 0.4s var(--transition-normal), opacity 0.3s ease;
+  will-change: transform;
+}
+html.dark .nav-bar {
+  background: rgba(15,23,42,0.70);
+  border-color: rgba(255,255,255,0.06);
+}
+.nav-hidden .nav-bar { transform: translate(-50%, 140%); opacity: 0; pointer-events: none; }
 
-        .glass-btn {
-            background: rgba(255,255,255,0.55);
-            backdrop-filter: blur(18px) saturate(1.3);
-            -webkit-backdrop-filter: blur(18px) saturate(1.3);
-            border: 1px solid rgba(255,255,255,0.5);
-            border-bottom: 1px solid rgba(255,255,255,0.2);
-            box-shadow: 0 4px 20px rgba(5,150,105,0.07), inset 0 1px 0 rgba(255,255,255,0.6);
-            transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
-        }
-        html.dark .glass-btn {
-            background: rgba(17,24,39,0.55);
-            border-color: rgba(255,255,255,0.08);
-        }
-        .glass-btn:hover {
-            transform: translateY(-3px) scale(1.02);
-            box-shadow: 0 12px 32px rgba(5,150,105,0.18), inset 0 1px 0 rgba(255,255,255,0.6);
-        }
-        .glass-btn:active { transform: scale(0.97); }
+.nav-indicator {
+  position: absolute;
+  inset: 8px;
+  width: calc(50% - 14px);
+  background: rgba(5,150,105,0.15);
+  border-radius: 1.4rem;
+  z-index: 1;
+  transition: transform 0.4s cubic-bezier(0.25,1,0.5,1);
+  right: 10px;
+}
 
-        /* ==================== شريط التنقل السفلي ==================== */
-        .nav-bar {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 90%;
-            max-width: 400px;
-            background: rgba(255,255,255,0.62);
-            backdrop-filter: blur(24px) saturate(1.5);
-            -webkit-backdrop-filter: blur(24px) saturate(1.5);
-            border: 1px solid rgba(255,255,255,0.45);
-            box-shadow: 0 10px 40px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.7);
-            display: flex;
-            justify-content: space-around;
-            padding: 12px;
-            z-index: 1000;
-            border-radius: 2rem;
-            transition: all 0.45s cubic-bezier(0.34,1.56,0.64,1);
-        }
-        html.dark .nav-bar {
-            background: rgba(15,23,42,0.68);
-            border-color: rgba(255,255,255,0.06);
-        }
-        .nav-hidden .nav-bar { transform: translate(-50%, 150%); opacity: 0; }
+/* ══════════ أزرار العداد ══════════ */
+.count-btn {
+  border-radius: 0.9rem;
+  width: 100%;
+  font-weight: bold;
+  padding: 11px;
+  transition: transform var(--transition-spring), box-shadow var(--transition-fast);
+  cursor: pointer;
+}
+.count-btn.active {
+  background: rgba(236,253,245,0.85);
+  backdrop-filter: blur(8px);
+  color: var(--green);
+  border: 1px solid rgba(16,185,129,0.3);
+}
+html.dark .count-btn.active { background: rgba(6,78,59,0.6); color: #ecfdf5; }
+.count-btn.active:active { transform: scale(0.96); }
+.count-btn.done {
+  background: rgba(241,245,249,0.7);
+  color: #94a3b8;
+}
+html.dark .count-btn.done { background: rgba(55,65,81,0.5); color: #6b7280; }
 
-        .nav-indicator {
-            position: absolute;
-            bottom: 8px; top: 8px;
-            width: calc(50% - 15px);
-            background: rgba(5,150,105,0.18);
-            backdrop-filter: blur(8px);
-            border-radius: 1.5rem;
-            z-index: 1;
-            transition: all 0.45s cubic-bezier(0.25, 1, 0.5, 1);
-            right: 10px;
-        }
+/* ══════════ بطاقات المهام ══════════ */
+.missed-task-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow), inset 0 1px 0 rgba(255,255,255,0.6);
+  border-radius: 1rem;
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: transform var(--transition-spring), box-shadow var(--transition-fast);
+  user-select: none;
+}
+html.dark .missed-task-card { background: rgba(17,24,39,0.55); border-color: rgba(255,255,255,0.08); }
+@media (hover: hover) {
+  .missed-task-card:hover {
+    transform: translateY(-2px) scale(1.01);
+    box-shadow: 0 10px 28px rgba(5,150,105,0.15);
+  }
+}
+.missed-task-card:active    { transform: scale(0.97); }
+.missed-task-card.done-card { opacity: 0.6; }
 
-        /* ==================== أزرار العداد ==================== */
-        .count-btn {
-            transition: all 0.22s cubic-bezier(0.34,1.56,0.64,1);
-            border-radius: 1rem;
-            width: 100%;
-            font-weight: bold;
-            padding: 12px;
-        }
-        .count-btn.active {
-            background: rgba(236,253,245,0.8);
-            backdrop-filter: blur(8px);
-            color: #059669;
-            border: 1px solid rgba(16,185,129,0.3);
-            box-shadow: 0 0 0 0 rgba(5,150,105,0.4);
-        }
-        html.dark .count-btn.active {
-            background: rgba(6,78,59,0.6);
-            color: #ecfdf5;
-        }
-        .count-btn.active:hover {
-            transform: scale(1.02);
-            box-shadow: 0 0 18px rgba(5,150,105,0.25);
-        }
-        .count-btn.done {
-            background: rgba(241,245,249,0.7);
-            color: #94a3b8;
-        }
-        html.dark .count-btn.done { background: rgba(55,65,81,0.5); color: #6b7280; }
-      /* ==================== تمرير نافذة الإعدادات ==================== */
+/* ══════════ خط القرآن ══════════ */
+.quran-font {
+  font-family: 'Amiri', serif;
+  line-height: 2.2;
+  font-size: var(--font-quran);
+  word-wrap: break-word;
+  white-space: normal;
+}
+
+/* ══════════ سلايدر حجم الخط ══════════ */
+.font-slider-container {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
+  border: 1px solid var(--glass-border);
+  border-radius: 1.3rem;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  box-shadow: var(--glass-shadow);
+}
+html.dark .font-slider-container { background: rgba(17,24,39,0.5); border-color: rgba(255,255,255,0.07); }
+
+.slider-track-wrapper { position: relative; padding: 18px 8px 8px; }
+.slider-track {
+  position: relative;
+  height: 4px;
+  background: rgba(5,150,105,0.15);
+  border-radius: 2px;
+  margin: 0 8px;
+}
+html.dark .slider-track { background: rgba(5,150,105,0.22); }
+.slider-fill {
+  position: absolute;
+  left: 0; top: 0;
+  height: 100%;
+  background: linear-gradient(to right, #059669, #34d399);
+  border-radius: 2px;
+  transition: width 0.12s ease;
+  pointer-events: none;
+}
+.slider-dots {
+  position: absolute;
+  top: 50%; left: 8px; right: 8px;
+  transform: translateY(-50%);
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.slider-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: rgba(5,150,105,0.25);
+  transition: background 0.18s, transform 0.18s;
+  flex-shrink: 0;
+}
+.slider-dot.active { background: var(--green); transform: scale(1.35); }
+.slider-bubble {
+  position: absolute;
+  top: -6px;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #059669, #064e3b);
+  color: white;
+  font-size: 0.6rem;
+  font-weight: bold;
+  font-family: 'Tajawal', sans-serif;
+  padding: 2px 6px;
+  border-radius: 6px;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(5,150,105,0.3);
+  transition: left 0.12s ease;
+  pointer-events: none;
+}
+.slider-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -3px; left: 50%;
+  transform: translateX(-50%);
+  border: 3px solid transparent;
+  border-top-color: #064e3b;
+}
+.font-range-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+  direction: ltr;
+}
+.font-size-preview {
+  font-family: 'Amiri', serif;
+  color: var(--green);
+  font-weight: bold;
+  transition: font-size 0.25s ease;
+  line-height: 1.4;
+}
+html.dark .font-size-preview { color: #34d399; }
+
+/* ══════════ ترقيم صفحات السورة ══════════ */
+.surah-page-btn {
+  padding: 7px 16px;
+  border-radius: 0.75rem;
+  font-weight: bold;
+  font-size: 0.82rem;
+  transition: transform var(--transition-spring), box-shadow var(--transition-fast);
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+}
+html.dark .surah-page-btn { background: rgba(30,41,59,0.55); color: white; }
+.surah-page-btn.current {
+  background: linear-gradient(135deg, #059669, #064e3b);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 4px 12px rgba(5,150,105,0.3);
+}
+@media (hover: hover) { .surah-page-btn:hover { transform: scale(1.05); } }
+
+/* ══════════ منتقي الوقت ══════════ */
+.time-picker-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(255,255,255,0.4);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(5,150,105,0.18);
+  border-radius: 1.3rem;
+  padding: 12px 8px;
+  direction: ltr;
+}
+html.dark .time-picker-container { background: rgba(15,23,42,0.5); border-color: rgba(5,150,105,0.28); }
+
+.time-picker-col { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.time-picker-scroll {
+  height: 120px;
+  overflow-y: scroll;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  width: 52px;
+  position: relative;
+}
+.time-picker-scroll::-webkit-scrollbar { display: none; }
+.time-picker-item {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  scroll-snap-align: center;
+  font-size: 1.25rem;
+  font-weight: bold;
+  font-family: 'Tajawal', sans-serif;
+  cursor: pointer;
+  border-radius: 0.5rem;
+  transition: color 0.15s, font-size 0.15s;
+  color: #94a3b8;
+  user-select: none;
+}
+html.dark .time-picker-item { color: #6b7280; }
+.time-picker-item.selected { color: var(--green); font-size: 1.45rem; background: rgba(5,150,105,0.08); }
+.time-picker-spacer { height: 40px; flex-shrink: 0; }
+.time-picker-separator { font-size: 1.7rem; font-weight: bold; color: var(--green); margin-bottom: 4px; }
+.time-picker-label { font-size: 0.6rem; font-weight: bold; color: var(--green); opacity: 0.7; margin-top: 4px; font-family: 'Tajawal', sans-serif; }
+.time-picker-selector-line {
+  position: absolute;
+  left: 3px; right: 3px; top: 40px;
+  height: 40px;
+  border-top: 1.5px solid rgba(5,150,105,0.28);
+  border-bottom: 1.5px solid rgba(5,150,105,0.28);
+  border-radius: 0.4rem;
+  pointer-events: none;
+  z-index: 2;
+}
+.time-ampm-btn { display: flex; flex-direction: column; gap: 5px; }
+.time-ampm-option {
+  padding: 7px 10px;
+  border-radius: 0.7rem;
+  font-size: 0.75rem;
+  font-weight: bold;
+  font-family: 'Tajawal', sans-serif;
+  cursor: pointer;
+  transition: all 0.18s;
+  background: rgba(255,255,255,0.4);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: #94a3b8;
+  text-align: center;
+}
+html.dark .time-ampm-option { background: rgba(30,41,59,0.4); color: #6b7280; }
+.time-ampm-option.active {
+  background: linear-gradient(135deg, #059669, #064e3b);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 2px 6px rgba(5,150,105,0.28);
+}
+.time-display-preview {
+  text-align: center;
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: var(--green);
+  font-family: 'Tajawal', sans-serif;
+  margin-bottom: 8px;
+  letter-spacing: 1px;
+}
+html.dark .time-display-preview { color: #34d399; }
+
+/* ══════════ حقل الإدخال ══════════ */
+.time-input-styled {
+  background: rgba(255,255,255,0.5);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(5,150,105,0.22);
+  border-radius: 1rem;
+  padding: 11px 14px;
+  width: 100%;
+  font-size: 1.1rem;
+  font-family: 'Tajawal', sans-serif;
+  color: inherit;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+html.dark .time-input-styled { background: rgba(30,41,59,0.5); border-color: rgba(5,150,105,0.3); color: white; }
+.time-input-styled:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(5,150,105,0.12);
+}
+
+/* ══════════ النوافذ المنبثقة ══════════ */
+.custom-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+.custom-modal-overlay.open { opacity: 1; pointer-events: all; }
+.custom-modal-box {
+  background: rgba(255,255,255,0.78);
+  backdrop-filter: blur(24px) saturate(1.5);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  border: 1px solid rgba(255,255,255,0.5);
+  box-shadow: 0 20px 56px rgba(5,150,105,0.16), inset 0 1px 0 rgba(255,255,255,0.8);
+  border-radius: 2.2rem;
+  padding: 24px;
+  width: 100%;
+  max-width: 310px;
+  transform: scale(0.88) translateY(24px);
+  transition: transform 0.4s var(--transition-spring), opacity 0.25s ease;
+  opacity: 0;
+}
+html.dark .custom-modal-box { background: rgba(15,23,42,0.85); border-color: rgba(255,255,255,0.08); color: white; }
+.custom-modal-overlay.open .custom-modal-box { transform: scale(1) translateY(0); opacity: 1; }
+
+.modal-btn-confirm {
+  background: linear-gradient(135deg, #059669, #064e3b);
+  color: white;
+  border-radius: 0.9rem;
+  padding: 11px;
+  font-weight: bold;
+  width: 100%;
+  transition: transform var(--transition-spring), box-shadow var(--transition-fast);
+  box-shadow: 0 4px 14px rgba(5,150,105,0.32);
+}
+@media (hover: hover) { .modal-btn-confirm:hover { transform: scale(1.03); box-shadow: 0 7px 20px rgba(5,150,105,0.42); } }
+.modal-btn-confirm:active { transform: scale(0.97); }
+
+.modal-btn-cancel {
+  background: rgba(241,245,249,0.7);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(226,232,240,0.6);
+  color: #64748b;
+  border-radius: 0.9rem;
+  padding: 11px;
+  font-weight: bold;
+  width: 100%;
+  transition: transform var(--transition-fast);
+}
+html.dark .modal-btn-cancel { background: rgba(55,65,81,0.6); color: #9ca3af; }
+@media (hover: hover) { .modal-btn-cancel:hover { transform: scale(1.02); } }
+
+.modal-icon {
+  width: 58px; height: 58px;
+  background: linear-gradient(135deg, rgba(5,150,105,0.12), rgba(5,150,105,0.04));
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px;
+  margin: 0 auto 14px;
+  border: 1px solid rgba(5,150,105,0.18);
+}
+
+/* ══════════ منطقة تمرير الإعدادات ══════════ */
 .settings-scroll-area {
-    max-height: 50vh; /* تحديد أقصى ارتفاع بنصف طول الشاشة */
-    overflow-y: auto; /* تفعيل التمرير العمودي */
-    padding-bottom: 10px;
-    /* إخفاء شريط التمرير */
-    scrollbar-width: none; 
-    -ms-overflow-style: none; 
+  max-height: 52vh;
+  overflow-y: auto;
+  padding-bottom: 8px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
-.settings-scroll-area::-webkit-scrollbar {
-    display: none;
+.settings-scroll-area::-webkit-scrollbar { display: none; }
+
+/* ══════════ التوست ══════════ */
+#toast {
+  position: fixed;
+  bottom: 106px;
+  left: 50%;
+  transform: translateX(-50%) translateY(70px);
+  background: linear-gradient(135deg, rgba(5,150,105,0.92), rgba(6,78,59,0.96));
+  backdrop-filter: blur(14px);
+  color: white;
+  padding: 11px 22px;
+  border-radius: 2rem;
+  font-size: 0.82rem;
+  font-weight: bold;
+  z-index: 9999;
+  opacity: 0;
+  transition: all 0.4s var(--transition-spring);
+  border: 1px solid rgba(255,255,255,0.18);
+  box-shadow: 0 6px 20px rgba(5,150,105,0.28);
+  white-space: nowrap;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ══════════ شارة الإشعارات ══════════ */
+.notification-badge {
+  width: 7px; height: 7px;
+  background: #34d399;
+  border-radius: 50%;
+  position: absolute;
+  top: 3px; left: 3px;
+  animation: pulse 2.2s infinite;
+}
+@keyframes pulse {
+  0%,100% { transform:scale(1); opacity:1; }
+  50%      { transform:scale(1.5); opacity:0.55; }
 }
 
-        /* ==================== تأثير التوهج عند الهوفر ==================== */
-        .glow-hover {
-            transition: all 0.3s ease;
-            position: relative;
-        }
-        .glow-hover::after {
-            content: '';
-            position: absolute;
-            inset: -3px;
-            border-radius: inherit;
-            background: radial-gradient(circle at center, rgba(5,150,105,0.35), transparent 70%);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            pointer-events: none;
-            z-index: -1;
-        }
-        .glow-hover:hover::after { opacity: 1; }
-        .glow-hover:hover { box-shadow: 0 0 22px rgba(5,150,105,0.3); }
-        .glow-hover:active { transform: scale(0.95); }
-
-        /* ==================== بطاقات تدارك ما فاتك - تأثير الهوفر والضغط ==================== */
-        .missed-task-card {
-            background: rgba(255,255,255,0.55);
-            backdrop-filter: blur(18px) saturate(1.3);
-            -webkit-backdrop-filter: blur(18px) saturate(1.3);
-            border: 1px solid rgba(255,255,255,0.4);
-            border-bottom: 1px solid rgba(255,255,255,0.2);
-            box-shadow: 0 4px 20px rgba(5,150,105,0.07), inset 0 1px 0 rgba(255,255,255,0.6);
-            border-radius: 1rem;
-            padding: 16px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
-            position: relative;
-            overflow: hidden;
-            user-select: none;
-        }
-        html.dark .missed-task-card {
-            background: rgba(17,24,39,0.55);
-            border-color: rgba(255,255,255,0.08);
-        }
-        .missed-task-card::after {
-            content: '';
-            position: absolute;
-            inset: -3px;
-            border-radius: inherit;
-            background: radial-gradient(circle at center, rgba(5,150,105,0.35), transparent 70%);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            pointer-events: none;
-            z-index: -1;
-        }
-        .missed-task-card:hover::after { opacity: 1; }
-        .missed-task-card:hover {
-            transform: translateY(-3px) scale(1.02);
-            box-shadow: 0 12px 32px rgba(5,150,105,0.18), inset 0 1px 0 rgba(255,255,255,0.6);
-        }
-        .missed-task-card:active { transform: scale(0.97); }
-        .missed-task-card.done-card {
-            opacity: 0.65;
-        }
-
-        /* ==================== البروفايل ==================== */
-        #profileHeaderCard {
-            transition: all 0.5s ease;
-            background-size: cover;
-            background-position: center;
-        }
-
-        /* ==================== النوافذ المنبثقة ==================== */
-        .custom-modal-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.5);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            z-index: 3000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 24px;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease;
-        }
-        .custom-modal-overlay.open {
-            opacity: 1;
-            pointer-events: all;
-        }
-        .custom-modal-box {
-            background: rgba(255,255,255,0.75);
-            backdrop-filter: blur(28px) saturate(1.6);
-            -webkit-backdrop-filter: blur(28px) saturate(1.6);
-            border: 1px solid rgba(255,255,255,0.5);
-            box-shadow: 0 24px 64px rgba(5,150,105,0.18), inset 0 1px 0 rgba(255,255,255,0.8);
-            border-radius: 2.5rem;
-            padding: 28px;
-            width: 100%;
-            max-width: 320px;
-            transform: scale(0.85) translateY(30px);
-            transition: transform 0.45s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s ease;
-            opacity: 0;
-        }
-        html.dark .custom-modal-box {
-            background: rgba(15,23,42,0.82);
-            border-color: rgba(255,255,255,0.08);
-            color: white;
-        }
-        .custom-modal-overlay.open .custom-modal-box {
-            transform: scale(1) translateY(0);
-            opacity: 1;
-        }
-        .modal-btn-confirm {
-            background: linear-gradient(135deg, #059669, #064e3b);
-            color: white;
-            border-radius: 1rem;
-            padding: 12px;
-            font-weight: bold;
-            width: 100%;
-            transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
-            box-shadow: 0 4px 16px rgba(5,150,105,0.35);
-        }
-        .modal-btn-confirm:hover { transform: scale(1.03); box-shadow: 0 8px 24px rgba(5,150,105,0.45); }
-        .modal-btn-cancel {
-            background: rgba(241,245,249,0.7);
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(226,232,240,0.6);
-            color: #64748b;
-            border-radius: 1rem;
-            padding: 12px;
-            font-weight: bold;
-            width: 100%;
-            transition: all 0.2s;
-        }
-        html.dark .modal-btn-cancel { background: rgba(55,65,81,0.6); color: #9ca3af; }
-        .modal-btn-cancel:hover { transform: scale(1.02); }
-        .modal-icon {
-            width: 64px; height: 64px;
-            background: linear-gradient(135deg, rgba(5,150,105,0.15), rgba(5,150,105,0.05));
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 28px;
-            margin: 0 auto 16px;
-            border: 1px solid rgba(5,150,105,0.2);
-        }
-
-        /* ==================== حقل الإدخال المشترك ==================== */
-        .time-input-styled {
-            background: rgba(255,255,255,0.5);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(5,150,105,0.25);
-            border-radius: 1rem;
-            padding: 12px 16px;
-            width: 100%;
-            font-size: 1.2rem;
-            font-family: 'Tajawal', sans-serif;
-            color: inherit;
-            outline: none;
-            transition: all 0.25s;
-        }
-        html.dark .time-input-styled {
-            background: rgba(30,41,59,0.5);
-            border-color: rgba(5,150,105,0.35);
-            color: white;
-        }
-        .time-input-styled:focus {
-            border-color: #059669;
-            box-shadow: 0 0 0 3px rgba(5,150,105,0.15);
-        }
-
-        /* ==================== منتقي الوقت المخصص ==================== */
-        .time-picker-container {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            background: rgba(255,255,255,0.4);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(5,150,105,0.2);
-            border-radius: 1.4rem;
-            padding: 14px 10px;
-            direction: ltr;
-        }
-        html.dark .time-picker-container {
-            background: rgba(15,23,42,0.5);
-            border-color: rgba(5,150,105,0.3);
-        }
-        .time-picker-col {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 2px;
-        }
-        .time-picker-scroll {
-            height: 120px;
-            overflow-y: scroll;
-            scroll-snap-type: y mandatory;
-            scrollbar-width: none;
-            -ms-overflow-style: none;
-            width: 56px;
-            position: relative;
-        }
-        .time-picker-scroll::-webkit-scrollbar { display: none; }
-        .time-picker-item {
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            scroll-snap-align: center;
-            font-size: 1.3rem;
-            font-weight: bold;
-            font-family: 'Tajawal', sans-serif;
-            cursor: pointer;
-            border-radius: 0.6rem;
-            transition: all 0.2s;
-            color: #94a3b8;
-            user-select: none;
-        }
-        html.dark .time-picker-item { color: #6b7280; }
-        .time-picker-item.selected {
-            color: #059669;
-            font-size: 1.55rem;
-            background: rgba(5,150,105,0.1);
-        }
-        .time-picker-spacer { height: 40px; flex-shrink: 0; }
-        .time-picker-separator {
-            font-size: 1.8rem;
-            font-weight: bold;
-            color: #059669;
-            margin-bottom: 4px;
-        }
-        .time-picker-selector-line {
-            position: absolute;
-            left: 4px; right: 4px;
-            top: 40px;
-            height: 40px;
-            border-top: 2px solid rgba(5,150,105,0.3);
-            border-bottom: 2px solid rgba(5,150,105,0.3);
-            border-radius: 0.4rem;
-            pointer-events: none;
-            z-index: 2;
-        }
-        .time-picker-label {
-            font-size: 0.65rem;
-            font-weight: bold;
-            color: #059669;
-            opacity: 0.7;
-            margin-top: 4px;
-            font-family: 'Tajawal', sans-serif;
-        }
-        .time-ampm-btn {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-        .time-ampm-option {
-            padding: 8px 12px;
-            border-radius: 0.8rem;
-            font-size: 0.8rem;
-            font-weight: bold;
-            font-family: 'Tajawal', sans-serif;
-            cursor: pointer;
-            transition: all 0.2s;
-            background: rgba(255,255,255,0.4);
-            border: 1px solid rgba(255,255,255,0.3);
-            color: #94a3b8;
-            text-align: center;
-        }
-        html.dark .time-ampm-option {
-            background: rgba(30,41,59,0.4);
-            color: #6b7280;
-        }
-        .time-ampm-option.active {
-            background: linear-gradient(135deg, #059669, #064e3b);
-            color: white;
-            border-color: transparent;
-            box-shadow: 0 2px 8px rgba(5,150,105,0.3);
-        }
-        .time-display-preview {
-            text-align: center;
-            font-size: 2rem;
-            font-weight: bold;
-            color: #059669;
-            font-family: 'Tajawal', sans-serif;
-            margin-bottom: 10px;
-            letter-spacing: 2px;
-            text-shadow: 0 0 20px rgba(5,150,105,0.2);
-        }
-        html.dark .time-display-preview { color: #34d399; }
-
-        /* ==================== صفحات السور - ترقيم الصفحات ==================== */
-        .quran-font {
-    font-family: 'Amiri', serif;
-    line-height: 2.3;
-    font-size: var(--font-size-quran);
-    word-wrap: break-word;      /* حماية إضافية تمنع النص من الخروج عن حدود الكرت */
-    white-space: normal;
+/* ══════════ مؤشر السحب ══════════ */
+.swipe-hint {
+  position: fixed;
+  top: 50%; left: 0;
+  transform: translateY(-50%);
+  width: 3px; height: 52px;
+  background: rgba(5,150,105,0.28);
+  border-radius: 0 3px 3px 0;
+  z-index: 500;
+  opacity: 0;
+  transition: opacity 0.25s;
+  pointer-events: none;
 }
-        .surah-page-btn {
-            padding: 8px 18px;
-            border-radius: 0.8rem;
-            font-weight: bold;
-            font-size: 0.85rem;
-            transition: all 0.25s cubic-bezier(0.34,1.56,0.64,1);
-            background: rgba(255,255,255,0.55);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.4);
-        }
-        html.dark .surah-page-btn { background: rgba(30,41,59,0.55); color: white; }
-        .surah-page-btn.current {
-            background: linear-gradient(135deg, #059669, #064e3b);
-            color: white;
-            border-color: transparent;
-            box-shadow: 0 4px 14px rgba(5,150,105,0.35);
-        }
-        .surah-page-btn:hover { transform: scale(1.06); }
+.swipe-hint.visible { opacity: 1; }
 
-        /* ==================== سلايدر حجم الخط - فقاعة تفاعلية ==================== */
-        .font-slider-container {
-            background: rgba(255,255,255,0.5);
-            backdrop-filter: blur(14px) saturate(1.3);
-            -webkit-backdrop-filter: blur(14px) saturate(1.3);
-            border: 1px solid rgba(255,255,255,0.45);
-            border-radius: 1.4rem;
-            padding: 16px 18px;
-            margin-bottom: 16px;
-            box-shadow: 0 4px 16px rgba(5,150,105,0.08);
-        }
-        html.dark .font-slider-container {
-            background: rgba(17,24,39,0.5);
-            border-color: rgba(255,255,255,0.07);
-        }
-        .font-slider-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-        }
-        .font-slider-title {
-            font-size: 0.75rem;
-            font-weight: bold;
-            color: #059669;
-        }
-        .font-size-preview {
-            font-family: 'Amiri', serif;
-            color: #059669;
-            font-weight: bold;
-            transition: font-size 0.3s ease;
-            line-height: 1.4;
-        }
-        html.dark .font-size-preview { color: #34d399; }
+/* ══════════ البروفايل ══════════ */
+#profileHeaderCard {
+  transition: background 0.4s ease;
+  background-size: cover;
+  background-position: center;
+}
 
-        /* السلايدر مع الفقاعة */
-        .slider-track-wrapper {
-            position: relative;
-            padding: 20px 10px 10px;
-        }
-        .slider-track {
-            position: relative;
-            height: 4px;
-            background: rgba(5,150,105,0.15);
-            border-radius: 2px;
-            margin: 0 10px;
-        }
-        html.dark .slider-track { background: rgba(5,150,105,0.25); }
-        .slider-fill {
-    position: absolute;
-    left: 0; /* تعديل: البدء من اليسار بدلاً من اليمين */
-    top: 0;
-    height: 100%;
-    background: linear-gradient(to right, #059669, #34d399); /* تعديل: التدرج لليمين */
-    border-radius: 2px;
-    transition: width 0.15s ease;
-      }
-        /* نقاط الحجوم على الخط */
-        .slider-dots {
-            position: absolute;
-            top: 50%;
-            left: 10px; right: 10px;
-            transform: translateY(-50%);
-            display: flex;
-            justify-content: space-between;
-            pointer-events: none;
-        }
-        .slider-dot {
-            width: 8px; height: 8px;
-            border-radius: 50%;
-            background: rgba(5,150,105,0.3);
-            transition: background 0.2s, transform 0.2s;
-            flex-shrink: 0;
-        }
-        .slider-dot.active {
-            background: #059669;
-            transform: scale(1.3);
-        }
-        /* الفقاعة فوق السلايدر */
-        .slider-bubble {
-    position: absolute;
-    top: -8px;
-    transform: translateX(-50%); /* تعديل: عكس التمركز ليتناسب مع اليسار */
-    background: linear-gradient(135deg, #059669, #064e3b);
-    color: white;
-    font-size: 0.62rem;
-    font-weight: bold;
-    font-family: 'Tajawal', sans-serif;
-    padding: 3px 7px;
-    border-radius: 8px;
-    white-space: nowrap;
-    box-shadow: 0 3px 10px rgba(5,150,105,0.35);
-    transition: left 0.15s ease; /* تعديل: الأنيميشن لليسار بدلاً من اليمين */
-    pointer-events: none;
-      }
-        .slider-bubble::after {
-            content: '';
-            position: absolute;
-            bottom: -4px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 0; height: 0;
-            border-left: 4px solid transparent;
-            border-right: 4px solid transparent;
-            border-top: 4px solid #064e3b;
-        }
-        /* الثامب المخفي الحقيقي */
-        .font-range-input {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            opacity: 0;
-            cursor: pointer;
-            margin: 0;
-            direction: ltr;
-        }
-
-        /* ==================== التوست ==================== */
-        #toast {
-            position: fixed;
-            bottom: 110px;
-            left: 50%;
-            transform: translateX(-50%) translateY(80px);
-            background: linear-gradient(135deg, rgba(5,150,105,0.9), rgba(6,78,59,0.95));
-            backdrop-filter: blur(16px);
-            color: white;
-            padding: 12px 24px;
-            border-radius: 2rem;
-            font-size: 0.85rem;
-            font-weight: bold;
-            z-index: 9999;
-            opacity: 0;
-            transition: all 0.45s cubic-bezier(0.34,1.56,0.64,1);
-            border: 1px solid rgba(255,255,255,0.2);
-            box-shadow: 0 8px 24px rgba(5,150,105,0.3);
-            white-space: nowrap;
-            pointer-events: none;
-        }
-        #toast.show {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0);
-        }
-
-        /* ==================== متنوع ==================== */
-        .notification-badge {
-            width: 8px; height: 8px;
-            background: #34d399;
-            border-radius: 50%;
-            position: absolute;
-            top: 2px; left: 2px;
-            animation: pulse 2s infinite;
-        }
-        @keyframes pulse {
-            0%,100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.4); opacity: 0.6; }
-        }
-
-        /* مؤشر السحب للرجوع */
-        .swipe-hint {
-            position: fixed;
-            top: 50%;
-            left: 0;
-            transform: translateY(-50%);
-            width: 4px;
-            height: 60px;
-            background: rgba(5,150,105,0.3);
-            border-radius: 0 4px 4px 0;
-            z-index: 500;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-        .swipe-hint.visible { opacity: 1; }
-    </style>
+/* ══════════ أيقونات SVG مخصصة ══════════ */
+.icon-svg {
+  display: inline-block;
+  width: 1em; height: 1em;
+  vertical-align: middle;
+  fill: currentColor;
+}
+</style>
 </head>
 <body class="dark:text-white">
 
-<!-- الكرات العائمة في الخلفية -->
-<div class="bg-orbs">
-    <div class="orb orb-1"></div>
-    <div class="orb orb-2"></div>
-    <div class="orb orb-3"></div>
+<!-- الكرات العائمة -->
+<div class="bg-orbs" aria-hidden="true">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
 </div>
 
-<!-- إشعار التوست -->
-<div id="toast"></div>
+<!-- التوست -->
+<div id="toast" role="status" aria-live="polite"></div>
 
-<!-- مؤشر السحب للرجوع -->
-<div class="swipe-hint" id="swipeHint"></div>
+<!-- مؤشر السحب -->
+<div class="swipe-hint" id="swipeHint" aria-hidden="true"></div>
 
-<!-- ===================== النوافذ المنبثقة ===================== -->
+<!-- ═══════════════════════════════════════════
+     النوافذ المنبثقة
+═══════════════════════════════════════════ -->
 
-<!-- نافذة تأكيد تصفير العداد -->
-<div class="custom-modal-overlay" id="confirmModal">
-    <div class="custom-modal-box">
-        <div class="modal-icon">🔄</div>
-        <h3 class="text-center font-bold text-lg mb-2" id="confirmModalTitle">تأكيد التصفير</h3>
-        <p class="text-center text-sm opacity-70 mb-6" id="confirmModalBody">هل أنت متأكد من تصفير عداد الأذكار؟</p>
-        <div class="flex gap-3">
-            <button class="modal-btn-confirm glow-hover" id="confirmModalYes">تأكيد</button>
-            <button class="modal-btn-cancel" onclick="closeModal('confirmModal')">إلغاء</button>
-        </div>
+<!-- تأكيد التصفير -->
+<div class="custom-modal-overlay" id="confirmModal" role="dialog" aria-modal="true">
+  <div class="custom-modal-box">
+    <div class="modal-icon">↺</div>
+    <h3 class="text-center font-bold text-lg mb-2" id="confirmModalTitle">تأكيد التصفير</h3>
+    <p class="text-center text-sm opacity-70 mb-5" id="confirmModalBody">هل أنت متأكد؟</p>
+    <div class="flex gap-3">
+      <button class="modal-btn-confirm" id="confirmModalYes">تأكيد</button>
+      <button class="modal-btn-cancel" onclick="closeModal('confirmModal')">إلغاء</button>
     </div>
+  </div>
 </div>
 
-<!-- نافذة الإعدادات والتذكيرات -->
-<div class="custom-modal-overlay" id="settingsModal">
-    <div class="custom-modal-box" style="max-width:340px;">
-        <div class="modal-icon">🔔</div>
-        <h3 class="text-center font-bold text-lg mb-5">إعداد التذكيرات</h3>
-        <div class="space-y-5 mb-6 settings-scroll-area px-1">
-            <!-- منتقي وقت أذكار الصباح -->
-            <div>
-                <label class="block text-xs font-bold mb-2 opacity-70">🌤️ أذكار الصباح</label>
-                <div class="time-display-preview" id="previewMorning">--:--</div>
-                <div class="time-picker-container" id="pickerMorning">
-                    <div class="time-picker-col">
-                        <div class="time-picker-label">ساعة</div>
-                        <div style="position:relative;">
-                            <div class="time-picker-selector-line"></div>
-                            <div class="time-picker-scroll" id="hoursMorning" onscroll="syncPicker('morning')"></div>
-                        </div>
-                    </div>
-                    <div class="time-picker-separator">:</div>
-                    <div class="time-picker-col">
-                        <div class="time-picker-label">دقيقة</div>
-                        <div style="position:relative;">
-                            <div class="time-picker-selector-line"></div>
-                            <div class="time-picker-scroll" id="minutesMorning" onscroll="syncPicker('morning')"></div>
-                        </div>
-                    </div>
-                    <div class="time-picker-col">
-                        <div class="time-picker-label">فترة</div>
-                        <div class="time-ampm-btn" id="ampmMorning">
-                            <div class="time-ampm-option active" onclick="setAmPm('morning','AM')">ص</div>
-                            <div class="time-ampm-option" onclick="setAmPm('morning','PM')">م</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <!-- منتقي وقت أذكار المساء -->
-            <div>
-                <label class="block text-xs font-bold mb-2 opacity-70">🌙 أذكار المساء</label>
-                <div class="time-display-preview" id="previewEvening">--:--</div>
-                <div class="time-picker-container" id="pickerEvening">
-                    <div class="time-picker-col">
-                        <div class="time-picker-label">ساعة</div>
-                        <div style="position:relative;">
-                            <div class="time-picker-selector-line"></div>
-                            <div class="time-picker-scroll" id="hoursEvening" onscroll="syncPicker('evening')"></div>
-                        </div>
-                    </div>
-                    <div class="time-picker-separator">:</div>
-                    <div class="time-picker-col">
-                        <div class="time-picker-label">دقيقة</div>
-                        <div style="position:relative;">
-                            <div class="time-picker-selector-line"></div>
-                            <div class="time-picker-scroll" id="minutesEvening" onscroll="syncPicker('evening')"></div>
-                        </div>
-                    </div>
-                    <div class="time-picker-col">
-                        <div class="time-picker-label">فترة</div>
-                        <div class="time-ampm-btn" id="ampmEvening">
-                            <div class="time-ampm-option" onclick="setAmPm('evening','AM')">ص</div>
-                            <div class="time-ampm-option active" onclick="setAmPm('evening','PM')">م</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <!-- منتقي وقت ورد القرآن -->
-            <div>
-                <label class="block text-xs font-bold mb-2 opacity-70">📖 تذكير ورد القرآن</label>
-                <div class="time-display-preview" id="previewQuran">--:--</div>
-                <div class="time-picker-container" id="pickerQuran">
-                    <div class="time-picker-col">
-                        <div class="time-picker-label">ساعة</div>
-                        <div style="position:relative;">
-                            <div class="time-picker-selector-line"></div>
-                            <div class="time-picker-scroll" id="hoursQuran" onscroll="syncPicker('quran')"></div>
-                        </div>
-                    </div>
-                    <div class="time-picker-separator">:</div>
-                    <div class="time-picker-col">
-                        <div class="time-picker-label">دقيقة</div>
-                        <div style="position:relative;">
-                            <div class="time-picker-selector-line"></div>
-                            <div class="time-picker-scroll" id="minutesQuran" onscroll="syncPicker('quran')"></div>
-                        </div>
-                    </div>
-                    <div class="time-picker-col">
-                        <div class="time-picker-label">فترة</div>
-                        <div class="time-ampm-btn" id="ampmQuran">
-                            <div class="time-ampm-option active" onclick="setAmPm('quran','AM')">ص</div>
-                            <div class="time-ampm-option" onclick="setAmPm('quran','PM')">م</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="flex gap-3">
-            <button class="modal-btn-confirm glow-hover" onclick="saveSettings()">حفظ وتفعيل 🔔</button>
-            <button class="modal-btn-cancel" onclick="closeModal('settingsModal')">إلغاء</button>
-        </div>
+<!-- الإعدادات -->
+<div class="custom-modal-overlay" id="settingsModal" role="dialog" aria-modal="true">
+  <div class="custom-modal-box" style="max-width:330px;">
+    <div class="modal-icon">
+      <!-- أيقونة جرس SVG -->
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="26" height="26" style="color:var(--green)">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
     </div>
-</div>
+    <h3 class="text-center font-bold text-lg mb-4">إعداد التذكيرات</h3>
+    <div class="space-y-4 mb-5 settings-scroll-area px-1">
 
-<!-- نافذة تنبيه عامة -->
-<div class="custom-modal-overlay" id="alertModal">
-    <div class="custom-modal-box">
-        <div class="modal-icon" id="alertModalIcon">✅</div>
-        <h3 class="text-center font-bold text-lg mb-2" id="alertModalTitle"></h3>
-        <p class="text-center text-sm opacity-70 mb-6" id="alertModalBody"></p>
-        <button class="modal-btn-confirm glow-hover" onclick="closeModal('alertModal')">حسناً</button>
+      <!-- أذكار الصباح -->
+      <div>
+        <label class="block text-xs font-bold mb-2 opacity-70 flex items-center gap-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="color:var(--green)"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          أذكار الصباح
+        </label>
+        <div class="time-display-preview" id="previewMorning">--:--</div>
+        <div class="time-picker-container" id="pickerMorning">
+          <div class="time-picker-col">
+            <div class="time-picker-label">ساعة</div>
+            <div style="position:relative;">
+              <div class="time-picker-selector-line"></div>
+              <div class="time-picker-scroll" id="hoursMorning" onscroll="syncPicker('morning')"></div>
+            </div>
+          </div>
+          <div class="time-picker-separator">:</div>
+          <div class="time-picker-col">
+            <div class="time-picker-label">دقيقة</div>
+            <div style="position:relative;">
+              <div class="time-picker-selector-line"></div>
+              <div class="time-picker-scroll" id="minutesMorning" onscroll="syncPicker('morning')"></div>
+            </div>
+          </div>
+          <div class="time-picker-col">
+            <div class="time-picker-label">فترة</div>
+            <div class="time-ampm-btn" id="ampmMorning">
+              <div class="time-ampm-option active" onclick="setAmPm('morning','AM')">ص</div>
+              <div class="time-ampm-option" onclick="setAmPm('morning','PM')">م</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- أذكار المساء -->
+      <div>
+        <label class="block text-xs font-bold mb-2 opacity-70 flex items-center gap-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="color:var(--green)"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          أذكار المساء
+        </label>
+        <div class="time-display-preview" id="previewEvening">--:--</div>
+        <div class="time-picker-container" id="pickerEvening">
+          <div class="time-picker-col">
+            <div class="time-picker-label">ساعة</div>
+            <div style="position:relative;">
+              <div class="time-picker-selector-line"></div>
+              <div class="time-picker-scroll" id="hoursEvening" onscroll="syncPicker('evening')"></div>
+            </div>
+          </div>
+          <div class="time-picker-separator">:</div>
+          <div class="time-picker-col">
+            <div class="time-picker-label">دقيقة</div>
+            <div style="position:relative;">
+              <div class="time-picker-selector-line"></div>
+              <div class="time-picker-scroll" id="minutesEvening" onscroll="syncPicker('evening')"></div>
+            </div>
+          </div>
+          <div class="time-picker-col">
+            <div class="time-picker-label">فترة</div>
+            <div class="time-ampm-btn" id="ampmEvening">
+              <div class="time-ampm-option" onclick="setAmPm('evening','AM')">ص</div>
+              <div class="time-ampm-option active" onclick="setAmPm('evening','PM')">م</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ورد القرآن -->
+      <div>
+        <label class="block text-xs font-bold mb-2 opacity-70 flex items-center gap-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="color:var(--green)"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          تذكير ورد القرآن
+        </label>
+        <div class="time-display-preview" id="previewQuran">--:--</div>
+        <div class="time-picker-container" id="pickerQuran">
+          <div class="time-picker-col">
+            <div class="time-picker-label">ساعة</div>
+            <div style="position:relative;">
+              <div class="time-picker-selector-line"></div>
+              <div class="time-picker-scroll" id="hoursQuran" onscroll="syncPicker('quran')"></div>
+            </div>
+          </div>
+          <div class="time-picker-separator">:</div>
+          <div class="time-picker-col">
+            <div class="time-picker-label">دقيقة</div>
+            <div style="position:relative;">
+              <div class="time-picker-selector-line"></div>
+              <div class="time-picker-scroll" id="minutesQuran" onscroll="syncPicker('quran')"></div>
+            </div>
+          </div>
+          <div class="time-picker-col">
+            <div class="time-picker-label">فترة</div>
+            <div class="time-ampm-btn" id="ampmQuran">
+              <div class="time-ampm-option active" onclick="setAmPm('quran','AM')">ص</div>
+              <div class="time-ampm-option" onclick="setAmPm('quran','PM')">م</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
+    <div class="flex gap-3">
+      <button class="modal-btn-confirm" onclick="saveSettings()">حفظ وتفعيل</button>
+      <button class="modal-btn-cancel" onclick="closeModal('settingsModal')">إلغاء</button>
+    </div>
+  </div>
 </div>
 
-<!-- ===================== التطبيق ===================== -->
+<!-- تنبيه عام -->
+<div class="custom-modal-overlay" id="alertModal" role="alertdialog" aria-modal="true">
+  <div class="custom-modal-box">
+    <div class="modal-icon" id="alertModalIcon">✓</div>
+    <h3 class="text-center font-bold text-lg mb-2" id="alertModalTitle"></h3>
+    <p class="text-center text-sm opacity-70 mb-5" id="alertModalBody"></p>
+    <button class="modal-btn-confirm" onclick="closeModal('alertModal')">حسناً</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     التطبيق الرئيسي
+═══════════════════════════════════════════ -->
 <div class="w-full max-w-md mx-auto relative min-h-screen overflow-x-hidden px-1">
 
-    <!-- الصفحة الرئيسية -->
-    <div id="homePage" class="page active p-5">
-        <div class="flex justify-between items-center mb-6">
-            <h1 class="text-xl font-bold text-emerald-800 dark:text-emerald-400">درب المسلم</h1>
-            <div class="flex gap-2">
-                <button onclick="openModal('settingsModal')" class="relative p-2.5 glass-btn rounded-xl glow-hover" style="border-radius:0.75rem;">
-                    🔔
-                    <span class="notification-badge" id="notifBadge" style="display:none;"></span>
-                </button>
-                <button onclick="toggleDarkMode()" class="p-2.5 glass-btn rounded-xl glow-hover" style="border-radius:0.75rem;">🌓</button>
-            </div>
-        </div>
-
-        <!-- البطاقة الخضراء الرئيسية مع تأثير التوهج -->
-        <div class="green-card p-6 mb-6 shadow-xl text-white">
-            <div class="flex justify-between items-start mb-4">
-                <div id="fullDate" class="text-[11px] font-bold opacity-95 text-right leading-relaxed"></div>
-                <div class="bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold border border-white/10">إنجاز اليوم: <span id="dailyCount">0</span></div>
-            </div>
-            <h2 class="text-lg font-bold mb-1 text-yellow-300">تذكير اليوم</h2>
-            <div id="randomAyah" class="text-md quran-font opacity-95">"فَاذْكُرُونِي أَذْكُرْكُمْ"</div>
-        </div>
-
-        <!-- قسم تدارك ما فاتك -->
-        <div class="mb-8">
-            <h3 class="text-sm font-bold mb-3 text-emerald-700 dark:text-emerald-400">🕒 تدارك ما فاتك اليوم:</h3>
-            <!-- البطاقات تُعرض بالجافاسكريبت وتدعم الضغط على المستطيل كاملاً -->
-            <div id="missedTasksContainer" class="space-y-2"></div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-4">
-            <button onclick="showPage('quranPage')" class="glass-btn p-8 rounded-[2rem] text-center glow-hover">
-                <span class="text-4xl block mb-2">📖</span>
-                <p class="font-bold text-xs">المصحف</p>
-            </button>
-            <button onclick="showPage('azkarPage')" class="glass-btn p-8 rounded-[2rem] text-center glow-hover">
-                <span class="text-4xl block mb-2">📿</span>
-                <p class="font-bold text-xs">الأذكار</p>
-            </button>
-        </div>
-    </div>
-
-    <!-- صفحة الأذكار -->
-    <div id="azkarPage" class="page p-5">
-        <div class="flex items-center gap-4 mb-6">
-            <button onclick="showPage('homePage', true)" class="text-emerald-600 text-xl font-bold p-2 glass-btn rounded-xl glow-hover" style="border-radius:0.75rem;">←</button>
-            <h2 class="text-2xl font-bold">حصن المسلم</h2>
-        </div>
-        <div class="flex gap-2 mb-6 bg-white/40 dark:bg-gray-800/40 backdrop-blur-md p-1 rounded-2xl border border-white/30">
-            <button id="sabah-btn" onclick="switchTab('صباح')" class="flex-1 py-3 rounded-xl font-bold bg-emerald-600 text-white shadow-lg transition-all glow-hover">أذكار الصباح 🌤️</button>
-            <button id="masaa-btn" onclick="switchTab('مساء')" class="flex-1 py-3 rounded-xl font-bold text-gray-400 transition-all glow-hover">أذكار المساء 🌙</button>
-        </div>
-        <div id="azkar-list" class="space-y-4"></div>
-        <button onclick="confirmReset()" class="w-full py-4 text-red-500 font-bold text-xs bg-red-50/50 dark:bg-red-900/10 backdrop-blur-sm rounded-2xl mt-8 mb-10 border border-dashed border-red-200 dark:border-red-800 glow-hover transition-all hover:bg-red-50/80">
-            🔄 تصفير عداد القسم الحالي فقط
+  <!-- ══ الصفحة الرئيسية ══ -->
+  <div id="homePage" class="page active p-5">
+    <div class="flex justify-between items-center mb-5">
+      <h1 class="text-xl font-bold text-emerald-800 dark:text-emerald-400">درب المسلم</h1>
+      <div class="flex gap-2">
+        <button onclick="openModal('settingsModal')" class="relative p-2.5 glass-btn rounded-xl" aria-label="إعداد التذكيرات" style="border-radius:0.75rem;">
+          <!-- أيقونة جرس -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          <span class="notification-badge" id="notifBadge" style="display:none;" aria-hidden="true"></span>
         </button>
+        <button onclick="toggleDarkMode()" class="p-2.5 glass-btn rounded-xl" aria-label="تبديل المظهر" style="border-radius:0.75rem;">
+          <!-- أيقونة قمر/شمس -->
+          <svg id="darkIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+      </div>
     </div>
 
-    <!-- صفحة البروفايل -->
-    <div id="profilePage" class="page p-5">
-        <h2 class="text-2xl font-bold mb-6 text-center mt-6">الملف الشخصي</h2>
-        <div id="profileHeaderCard" class="relative bg-emerald-600 p-8 rounded-[2.5rem] text-center shadow-xl mb-6 overflow-hidden">
-            <div class="absolute inset-0 backdrop-blur-sm" style="background:rgba(0,0,0,0.1);"></div>
-            <div class="relative z-10">
-                <div id="userInitial" class="w-20 h-20 bg-white/20 backdrop-blur-md rounded-full mx-auto mb-4 flex items-center justify-center text-white text-3xl font-bold border-2 border-white/30">؟</div>
-                <h2 id="displayUserName" class="text-2xl font-bold text-white mb-1">مستخدم جديد</h2>
-                <p id="displayUserBio" class="text-white/80 text-xs">خصص بروفايلك الآن</p>
-                <button onclick="editProfile()" class="mt-4 px-4 py-1.5 bg-black/20 backdrop-blur-md rounded-full text-[10px] text-white font-bold hover:bg-black/30 transition-all glow-hover">تعديل البيانات ✏️</button>
-            </div>
-        </div>
-
-        <div class="space-y-4">
-            <div class="bg-gradient-to-r from-emerald-600 to-teal-700 p-6 rounded-[2rem] flex justify-between items-center shadow-lg text-white">
-                <div>
-                    <p class="text-[10px] opacity-80 font-bold uppercase text-right">الإنجاز الكلي مدى الحياة</p>
-                    <p id="totalLifetime" class="text-3xl font-bold">0</p>
-                </div>
-                <span class="text-4xl">🏆</span>
-            </div>
-
-            <div class="bg-white/40 dark:bg-gray-800/40 backdrop-blur-md p-5 rounded-[2rem] border border-dashed border-emerald-200 dark:border-emerald-900/30">
-                <p class="text-[10px] font-bold text-emerald-600 mb-3 text-center">ملاك التطبيق</p>
-                <div class="flex flex-col gap-2 text-center">
-                    <p class="text-xs font-bold opacity-80">احمد العمري ~~ Ahmed 10</p>
-                    <p class="text-xs font-bold opacity-80">ابراهيم العدواني ~~ Brody</p>
-                </div>
-            </div>
-
-            <div class="p-6 text-center">
-                <p class="text-xs leading-relaxed opacity-70 italic">
-                    نتمنى منكم نشر التطبيق كما قال رسولنا الكريم صلى الله عليه وسلم <br>
-                    <span class="font-bold text-emerald-600 text-sm">"الدال على الخير كفاعله"</span> <br>
-                    لا تنسونا من دعائكم لنا وشكراً ❤️
-                </p>
-            </div>
-        </div>
+    <!-- البطاقة الخضراء -->
+    <div class="green-card p-6 mb-5 shadow-xl text-white">
+      <div class="flex justify-between items-start mb-3">
+        <div id="fullDate" class="text-[11px] font-bold opacity-90 text-right leading-relaxed"></div>
+        <div class="bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold border border-white/10">إنجاز اليوم: <span id="dailyCount">0</span></div>
+      </div>
+      <h2 class="text-base font-bold mb-1 text-yellow-300">تذكير اليوم</h2>
+      <div id="randomAyah" class="text-base quran-font opacity-95 leading-relaxed"></div>
     </div>
 
-    <!-- نافذة تعديل البروفايل -->
-    <div id="editProfileModal" class="custom-modal-overlay">
-        <div class="custom-modal-box" style="max-width:300px;">
-            <h3 class="text-lg font-bold mb-5 text-center">تخصيص الحساب ✨</h3>
-            <div class="space-y-4 mb-5">
-                <div>
-                    <label class="text-[10px] font-bold block mb-1 opacity-60">الاسم:</label>
-                    <input id="userNameInput" type="text" class="time-input-styled" placeholder="اكتب اسمك...">
-                </div>
-                <div>
-                    <label class="text-[10px] font-bold block mb-1 opacity-60">الوصف:</label>
-                    <input id="userBioInput" type="text" class="time-input-styled" placeholder="طالب، معلم...">
-                </div>
-                <div>
-                    <label class="text-[10px] font-bold block mb-1 opacity-60">خلفية الكرت (لون أو رابط):</label>
-                    <input id="bgInput" type="text" class="time-input-styled" placeholder="#059669 أو رابط صورة">
-                </div>
-            </div>
-            <div class="flex gap-3">
-                <button onclick="saveProfile()" class="modal-btn-confirm glow-hover">حفظ ✅</button>
-                <button onclick="closeEditProfile()" class="modal-btn-cancel">إلغاء</button>
-            </div>
-        </div>
+    <!-- تدارك ما فاتك -->
+    <div class="mb-7">
+      <h3 class="text-sm font-bold mb-3 text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        تدارك ما فاتك اليوم
+      </h3>
+      <div id="missedTasksContainer" class="space-y-2"></div>
     </div>
 
-    <!-- صفحة المصحف الكريم -->
-    <div id="quranPage" class="page p-5">
-        <div class="flex items-center gap-3 mb-5">
-            <button onclick="showPage('homePage', true)" class="text-emerald-600 font-bold p-2 glass-btn rounded-xl glow-hover" style="border-radius:0.75rem;">←</button>
-            <h2 class="text-xl font-bold">المصحف الكريم</h2>
+    <div class="grid grid-cols-2 gap-4">
+      <button onclick="showPage('quranPage')" class="glass-btn p-7 rounded-[2rem] text-center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40" height="40" class="mx-auto mb-2" style="color:var(--green)"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        <p class="font-bold text-xs">المصحف</p>
+      </button>
+      <button onclick="showPage('azkarPage')" class="glass-btn p-7 rounded-[2rem] text-center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40" height="40" class="mx-auto mb-2" style="color:var(--green)"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18"/><circle cx="12" cy="12" r="1" fill="currentColor"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2"/></svg>
+        <p class="font-bold text-xs">الأذكار</p>
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ صفحة الأذكار ══ -->
+  <div id="azkarPage" class="page p-5">
+    <div class="flex items-center gap-3 mb-5">
+      <button onclick="showPage('homePage', true)" class="text-emerald-600 font-bold p-2 glass-btn rounded-xl" style="border-radius:0.75rem;" aria-label="رجوع">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <h2 class="text-xl font-bold">حصن المسلم</h2>
+    </div>
+    <div class="flex gap-2 mb-5 bg-white/40 dark:bg-gray-800/40 backdrop-blur-md p-1 rounded-2xl border border-white/30">
+      <button id="sabah-btn" onclick="switchTab('صباح')" class="flex-1 py-3 rounded-xl font-bold bg-emerald-600 text-white shadow-md transition-all text-sm">أذكار الصباح</button>
+      <button id="masaa-btn" onclick="switchTab('مساء')" class="flex-1 py-3 rounded-xl font-bold text-gray-400 transition-all text-sm">أذكار المساء</button>
+    </div>
+    <div id="azkar-list" class="space-y-3"></div>
+    <button onclick="confirmReset()" class="w-full py-3.5 text-red-500 font-bold text-xs bg-red-50/50 dark:bg-red-900/10 backdrop-blur-sm rounded-2xl mt-7 mb-10 border border-dashed border-red-200 dark:border-red-800 transition-all hover:bg-red-50/80">
+      تصفير عداد القسم الحالي
+    </button>
+  </div>
+
+  <!-- ══ صفحة البروفايل ══ -->
+  <div id="profilePage" class="page p-5">
+    <h2 class="text-2xl font-bold mb-5 text-center mt-5">الملف الشخصي</h2>
+    <div id="profileHeaderCard" class="relative bg-emerald-600 p-7 rounded-[2.5rem] text-center shadow-xl mb-5 overflow-hidden">
+      <div class="absolute inset-0" style="background:rgba(0,0,0,0.08);"></div>
+      <div class="relative z-10">
+        <div id="userInitial" class="w-18 h-18 bg-white/20 backdrop-blur-md rounded-full mx-auto mb-3 flex items-center justify-center text-white text-3xl font-bold border-2 border-white/30" style="width:72px;height:72px;">؟</div>
+        <h2 id="displayUserName" class="text-2xl font-bold text-white mb-1">مستخدم جديد</h2>
+        <p id="displayUserBio" class="text-white/80 text-xs">خصص صفحتك الآن</p>
+        <button onclick="editProfile()" class="mt-3 px-4 py-1.5 bg-black/20 backdrop-blur-md rounded-full text-[10px] text-white font-bold hover:bg-black/30 transition-all">تعديل البيانات</button>
+      </div>
+    </div>
+    <div class="space-y-4">
+      <div class="bg-gradient-to-r from-emerald-600 to-teal-700 p-5 rounded-[2rem] flex justify-between items-center shadow-lg text-white">
+        <div>
+          <p class="text-[10px] opacity-80 font-bold uppercase text-right">الإنجاز الكلي  </p>
+          <p id="totalLifetime" class="text-3xl font-bold">0</p>
         </div>
-        <!-- حقل البحث عن سورة -->
-        <input id="searchSurah" oninput="filterSurahs()" type="text" placeholder="ابحث عن سورة..." class="time-input-styled mb-4 text-right" style="border-radius:1.2rem;">
-        <!-- سلايدر حجم الخط التفاعلي مع الفقاعة -->
-        <div class="font-slider-container">
-            <div class="font-slider-header">
-                <span class="font-slider-title">🔡 حجم خط القرآن</span>
-                <!-- مثال حي يتغير مع السلايدر -->
-                <span class="font-size-preview" id="fontSizePreviewText">بِسْمِ اللَّهِ</span>
-            </div>
-            <div class="slider-track-wrapper" dir="ltr">
-                <!-- مسار السلايدر مع الفقاعة والنقاط -->
-                <div class="slider-track" id="sliderTrack">
-                    <div class="slider-fill" id="sliderFill"></div>
-                    <div class="slider-dots" id="sliderDots"></div>
-                    <!-- الفقاعة التي تطفو فوق المسار -->
-                    <div class="slider-bubble" id="sliderBubble">متوسط</div>
-                    <!-- الإدخال الحقيقي المخفي -->
-                    <input type="range" class="font-range-input" id="fontSizeRange"
-                           min="0" max="4" step="1" value="2"
-                           oninput="onFontSliderChange(this.value)"
-                           onchange="onFontSliderChange(this.value)">
-                </div>
-            </div>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="42" height="42" style="opacity:0.9"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="white" fill-opacity="0.25"/></svg>
+      </div>
+      <div class="bg-white/40 dark:bg-gray-800/40 backdrop-blur-md p-5 rounded-[2rem] border border-dashed border-emerald-200 dark:border-emerald-900/30">
+        <p class="text-[10px] font-bold text-emerald-600 mb-3 text-center">تطوير واعداد</p>
+        <div class="flex flex-col gap-2 text-center">
+          <p class="text-xs font-bold opacity-80">احمد العمري &mdash; Ahmed 10</p>
+          <p class="text-xs font-bold opacity-80">ابراهيم العدواني &mdash; Brody</p>
         </div>
-        <!-- قائمة السور -->
-        <div id="surahList" class="space-y-2"></div>
+      </div>
+      <div class="p-5 text-center">
+        <p class="text-xs leading-relaxed opacity-70 italic">
+          نتمنى منكم نشر التطبيق، كما قال رسولنا الكريم ﷺ<br>
+          <span class="font-bold text-emerald-600 text-sm">"الدال على الخير كفاعله"</span><br>
+          لا تنسونا من دعائكم ❤️
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- نافذة تعديل البروفايل -->
+  <div id="editProfileModal" class="custom-modal-overlay" role="dialog" aria-modal="true">
+    <div class="custom-modal-box" style="max-width:290px;">
+      <h3 class="text-lg font-bold mb-4 text-center">تخصيص الحساب</h3>
+      <div class="space-y-3 mb-4">
+        <div>
+          <label class="text-[10px] font-bold block mb-1 opacity-60">الاسم:</label>
+          <input id="userNameInput" type="text" class="time-input-styled" placeholder="اكتب اسمك...">
+        </div>
+        <div>
+          <label class="text-[10px] font-bold block mb-1 opacity-60">الوصف:</label>
+          <input id="userBioInput" type="text" class="time-input-styled" placeholder="طالب، معلم...">
+        </div>
+        <div>
+          <label class="text-[10px] font-bold block mb-1 opacity-60">خلفية الكرت (لون أو رابط):</label>
+          <input id="bgInput" type="text" class="time-input-styled" placeholder="#059669 أو رابط صورة">
+        </div>
+      </div>
+      <div class="flex gap-3">
+        <button onclick="saveProfile()" class="modal-btn-confirm">حفظ</button>
+        <button onclick="closeModal('editProfileModal')" class="modal-btn-cancel">إلغاء</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ صفحة المصحف ══ -->
+  <div id="quranPage" class="page p-5">
+    <div class="flex items-center gap-3 mb-4">
+      <button onclick="showPage('homePage', true)" class="text-emerald-600 font-bold p-2 glass-btn rounded-xl" style="border-radius:0.75rem;" aria-label="رجوع">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <h2 class="text-xl font-bold">المصحف الكريم</h2>
+    </div>
+    <input id="searchSurah" oninput="filterSurahs()" type="text" placeholder="ابحث عن سورة..." class="time-input-styled mb-3 text-right" style="border-radius:1.1rem;" aria-label="بحث عن سورة">
+
+    <!-- سلايدر حجم الخط -->
+    <div class="font-slider-container">
+      <div class="flex justify-between items-center mb-2">
+        <span class="text-xs font-bold" style="color:var(--green)">حجم خط القرآن</span>
+        <span class="font-size-preview" id="fontSizePreviewText">بِسْمِ اللَّهِ</span>
+      </div>
+      <div class="slider-track-wrapper" dir="ltr">
+        <div class="slider-track" id="sliderTrack">
+          <div class="slider-fill" id="sliderFill"></div>
+          <div class="slider-dots" id="sliderDots"></div>
+          <div class="slider-bubble" id="sliderBubble">متوسط</div>
+          <input type="range" class="font-range-input" id="fontSizeRange"
+            min="0" max="6" step="1" value="4"
+            oninput="onFontSliderChange(this.value)"
+            aria-label="حجم خط القرآن">
+        </div>
+      </div>
     </div>
 
-    <!-- صفحة الإعدادات (لا تُستخدم لكن تُبقى كما هي) -->
-    <div id="settingsPage" class="page p-5" style="display:none;"></div>
+    <div id="surahList" class="space-y-2"></div>
+  </div>
 
-    <!-- صفحة عرض السورة -->
-    <div id="surahView" class="page p-5">
-        <div class="flex items-center gap-3 mb-5">
-            <button onclick="showPage('quranPage', true)" class="text-emerald-600 font-bold p-2 glass-btn rounded-xl glow-hover" style="border-radius:0.75rem;">←</button>
-            <h2 id="surahViewTitle" class="text-xl font-bold"></h2>
-        </div>
-        <div id="surahContent" class="bg-white/55 dark:bg-gray-800/55 backdrop-blur-lg p-6 rounded-[2rem] quran-font text-xl leading-loose text-right border border-white/40 dark:border-white/5 mb-4"></div>
-        <!-- ترقيم الصفحات -->
-        <div id="surahPagination" class="flex flex-wrap gap-2 justify-center mt-4 mb-6"></div>
+  <!-- ══ صفحة عرض السورة ══ -->
+  <div id="surahView" class="page p-5">
+    <div class="flex items-center gap-3 mb-4">
+      <button onclick="showPage('quranPage', true)" class="text-emerald-600 font-bold p-2 glass-btn rounded-xl" style="border-radius:0.75rem;" aria-label="رجوع">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <h2 id="surahViewTitle" class="text-xl font-bold"></h2>
     </div>
+    <div id="surahContent" class="bg-white/55 dark:bg-gray-800/55 backdrop-blur-lg p-5 rounded-[2rem] quran-font leading-loose text-right border border-white/40 dark:border-white/5 mb-3"></div>
+    <div id="surahPagination" class="flex flex-wrap gap-2 justify-center mt-3 mb-5"></div>
+  </div>
 
-    <!-- شريط التنقل السفلي -->
-    <nav id="bottomNav" class="nav-bar">
-        <div id="navIndicator" class="nav-indicator"></div>
-        <button onclick="showPage('homePage')" class="flex flex-col items-center relative z-10 opacity-100" id="nav-home">🏠<span class="text-[10px] font-bold">الرئيسية</span></button>
-        <button onclick="showPage('profilePage')" class="flex flex-col items-center relative z-10 opacity-40" id="nav-profile">👤<span class="text-[10px] font-bold">البروفايل</span></button>
-    </nav>
+  <!-- ══ شريط التنقل ══ -->
+  <nav id="bottomNav" class="nav-bar" aria-label="التنقل الرئيسي">
+    <div id="navIndicator" class="nav-indicator" aria-hidden="true"></div>
+    <button onclick="showPage('homePage')" class="flex flex-col items-center relative z-10 opacity-100 gap-0.5" id="nav-home" aria-label="الرئيسية">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span class="text-[10px] font-bold">الرئيسية</span>
+    </button>
+    <button onclick="showPage('profilePage')" class="flex flex-col items-center relative z-10 opacity-40 gap-0.5" id="nav-profile" aria-label="البروفايل">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span class="text-[10px] font-bold">الملف الشخصي</span>
+    </button>
+  </nav>
 </div>
 
-<!-- ===================== الجافاسكريبت ===================== -->
+<!-- ═══════════════════════════════════════════
+     الجافاسكريبت - نسخة مُحسَّنة
+═══════════════════════════════════════════ -->
 <script>
-/* ===== البيانات الثابتة ===== */
-const motivationalTexts = [
-    "وَالَّذِينَ جَاهَدُوا فِينَا لَنَهْدِيَنَّهُمْ سُبُلَنَا",
-    "وَمَن يَتَّقِ اللَّهَ يَجْعَل لَّهُ مَخْرَجًا * وَيَرْزُقْهُ مِنْ حَيْثُ لَا يَحْتَسِبُ",
-    "وَبَشِّرِ الصَّابِرِينَ",
-    "لَا يُكَلِّفُ اللَّهُ نَفْسًا إِلَّا وُسْعَهَا",
-    "يُرِيدُ اللَّهُ بِكُمُ الْيُسْرَ وَلَا يُرِيدُ بِكُمُ الْعُسْرَ",
-    "قُلْ يَا عِبَادِيَ الَّذِينَ أَسْرَفُوا عَلَىٰ أَنفُسِهِمْ لَا تَقْنَطُوا مِن رَّحْمَةِ اللَّهِ",
-    "وَإِذَا سَأَلَكَ عِبَادِي عَنِّي فَإِنِّي قَرِيبٌ أُجِيبُ دَعْوَةَ الدَّاعِ إِذَا دَعَانِ",
-    "أَمَّن يُجِيبُ الْمُضْطَرَّ إِذَا دَعَاهُ وَيَكْشِفُ السُّوءَ",
-    "إِنَّ رَحْمَتَ اللَّهِ قَرِيبٌ مِّنَ الْمُحْسِنِينَ",
-    "فَإِنَّ مَعَ الْعُسْرِ يُسْرًا * إِنَّ مَعَ الْعُسْرِ يُسْرًا",
-    "وَعَسَىٰ أَن تَكْرَهُوا شَيْئًا وَهُوَ خَيْرٌ لَّكُمْ"
+'use strict';
+
+/* ══════════════════════════════
+   البيانات الثابتة
+══════════════════════════════ */
+const MOTIVATIONAL = [
+  "وَالَّذِينَ جَاهَدُوا فِينَا لَنَهْدِيَنَّهُمْ سُبُلَنَا",
+  "وَمَن يَتَّقِ اللَّهَ يَجْعَل لَّهُ مَخْرَجًا وَيَرْزُقْهُ مِنْ حَيْثُ لَا يَحْتَسِبُ",
+  "وَبَشِّرِ الصَّابِرِينَ",
+  "لَا يُكَلِّفُ اللَّهُ نَفْسًا إِلَّا وُسْعَهَا",
+  "يُرِيدُ اللَّهُ بِكُمُ الْيُسْرَ وَلَا يُرِيدُ بِكُمُ الْعُسْرَ",
+  "قُلْ يَا عِبَادِيَ الَّذِينَ أَسْرَفُوا عَلَىٰ أَنفُسِهِمْ لَا تَقْنَطُوا مِن رَّحْمَةِ اللَّهِ",
+  "وَإِذَا سَأَلَكَ عِبَادِي عَنِّي فَإِنِّي قَرِيبٌ أُجِيبُ دَعْوَةَ الدَّاعِ إِذَا دَعَانِ",
+  "إِنَّ رَحْمَتَ اللَّهِ قَرِيبٌ مِّنَ الْمُحْسِنِينَ",
+  "فَإِنَّ مَعَ الْعُسْرِ يُسْرًا إِنَّ مَعَ الْعُسْرِ يُسْرًا",
+  "وَعَسَىٰ أَن تَكْرَهُوا شَيْئًا وَهُوَ خَيْرٌ لَّكُمْ",
+  "فَاذْكُرُونِي أَذْكُرْكُمْ"
 ];
 
-const azkarStatic = {
-    'صباح': [
-        {id:1,title:"آية الكرسي",zekr:"اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ ۚ لَا تَأْخُذُهُ سِنَةٌ وَلَا نَوْمٌ ۚ لَّهُ مَا فِي السَّمَاوَاتِ وَمَا فِي الْأَرْضِ ۗ مَن ذَا الَّذِي يَشْفَعُ عِندَهُ إِلَّا بِإِذْنِهِ ۚ يَعْلَمُ مَا بَيْنَ أَيْدِيهِمْ وَمَا خَلْفَهُمْ ۖ وَلَا يُحِيطُونَ بِشَيْءٍ مِّنْ عِلْمِهِ إِلَّا بِمَا شَاءَ ۚ وَسِعَ كُرْسِيُّهُ السَّمَاوَاتِ وَالْأَرْضِ ۖ وَلَا يَئُودُهُ حِفْظُهُمَا ۚ وَهُوَ الْعَلِيُّ الْعَظِيمُ.",count:1,desc:"مرة واحدة"},
-        {id:2,title:"سورة الإخلاص",zekr:"قُلْ هُوَ اللَّهُ أَحَدٌ ۝ اللَّهُ الصَّمَدُ ۝ لَمْ يَلِدْ وَلَمْ يُولَدْ ۝ وَلَمْ يَكُن لَّهُ كُفُوًا أَحَدٌ",count:3,desc:"3 مرات"},
-        {id:3,title:"سورة الفلق",zekr:"قُلْ أَعُوذُ بِرَبِّ الْفَلَقِ ۝ مِن شَرِّ مَا خَلَقَ ۝ وَمِن شَرِّ غَاسِقٍ إِذَا وَقَبَ ۝ وَمِن شَرِّ النَّفَّاثَاتِ فِي الْعُقَدِ ۝ وَمِن شَرِّ حَاسِدٍ إِذَا حَسَدَ",count:3,desc:"3 مرات"},
-        {id:4,title:"سورة الناس",zekr:"قُلْ أَعُوذُ بِرَبِّ النَّاسِ ۝ مَلِكِ النَّاسِ ۝ إِلَٰهِ النَّاسِ ۝ مِن شَرِّ الْوَسْوَاسِ الْخَنَّاسِ ۝ الَّذِي يُوَسْوِسُ فِي صُدُورِ النَّاسِ ۝ مِنَ الْجِنَّةِ وَالنَّاسِ",count:3,desc:"3 مرات"},
-        {id:5,title:"دعاء الصباح",zekr:"أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ، وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ، رَبِّ أَسْأَلُكَ خَيْرَ مَا فِي هَذَا الْيَوْمِ وَخَيْرَ مَا بَعْدَهُ، وَأَعُوذُ بِكَ مِنْ شَرِّ مَا فِي هَذَا الْيَوْمِ وَشَرِّ مَا بَعْدَهُ.",count:1,desc:"مرة واحدة"},
-        {id:6,title:"سيد الاستغفار",zekr:"اللَّهُمَّ أَنْتَ رَبِّي لَا إِلَهَ إِلَّا أَنْتَ، خَلَقْتَنِي وَأَنَا عَبْدُكَ، وَأَنَا عَلَى عَهْدِكَ وَوَعْدِكَ مَا اسْتَطعتُ، أَعُوذُ بِكَ مِنْ شَرِّ مَا صَنَعْتُ، أَبُوءُ لَكَ بِنِعْمَتِكَ عَلَيَّ، وَأَبُوءُ بِذَنْبِي فَاغْفِرْ لِي، فَإِنَّهُ لَا يَغْفِرُ الذُّنُوبَ إِلَّا أَنْتَ.",count:1,desc:"مرة واحدة"},
-        {id:7,title:"دعاء العافية",zekr:"اللَّهُمَّ عَافِنِي فِي بَدَنِي، اللَّهُمَّ عَافِنِي فِي سَمْعِي، اللَّهُمَّ عَافِنِي فِي بَصَرِي، لَا إِلَهَ إِلَّا أَنْتَ.",count:3,desc:"3 مرات"},
-        {id:8,title:"بسم الله الذي لا يضر",zekr:"بِسْمِ اللَّهِ الَّذِي لَا يَضُرُّ مَعَ اسْمِهِ شَيْءٌ فِي الْأَرْضِ وَلَا فِي السَّمَاءِ وَهُوَ السَّمِيعُ الْعَلِيمُ.",count:3,desc:"3 مرات"},
-        {id:9,title:"رضيت بالله رباً",zekr:"رَضِيتُ بِاللَّهِ رَبًّا، وَبِالْإِسْلَامِ دِينًا، وَبِمُحَمَّدٍ ﷺ نَبِيًّا.",count:3,desc:"3 مرات"},
-        {id:10,title:"سبحان الله وبحمده",zekr:"سُبْحَانَ اللَّهِ وَبِحَمْدِهِ.",count:100,desc:"100 مرة"},
-        {id:11,title:"لا إله إلا الله وحده لا شريك له",zekr:"لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ.",count:10,desc:"10 مرات"},
-        {id:12,title:"أستغفر الله وأتوب إليه",zekr:"أَسْتَغْفِرُ اللَّهَ وَأَتُوبُ إِلَيْهِ.",count:100,desc:"100 مرة"}
-    ],
-    'مساء': [
-        {id:1,title:"آية الكرسي",zekr:"اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ ۚ لَا تَأْخُذُهُ سِنَةٌ وَلَا نَوْمٌ ۚ لَّهُ مَا فِي السَّمَاوَاتِ وَمَا فِي الْأَرْضِ ۗ مَن ذَا الَّذِي يَشْفَعُ عِندَهُ إِلَّا بِإِذْنِهِ ۚ يَعْلَمُ مَا بَيْنَ أَيْدِيهِمْ وَمَا خَلْفَهُمْ ۖ وَلَا يُحيطُونَ بِشَيْءٍ مِّنْ عِلْمِهِ إِلَّا بِمَا شَاءَ ۚ وَسِعَ كُرْسِيُّهُ السَّمَاوَاتِ وَالْأَرْضِ ۖ وَلَا يَئُودُهُ حِفْظُهُمَا ۚ وَهُوَ الْعَلِيُّ الْعَظِيمُ.",count:1,desc:"مرة واحدة"},
-        {id:2,title:"سورة الإخلاص",zekr:"قُلْ هُوَ اللَّهُ أَحَدٌ ۝ اللَّهُ الصَّمَدُ ۝ لَمْ يَلِدْ وَلَمْ يُولَدْ ۝ وَلَمْ يَكُن لَّهُ كُفُوًا أَحَدٌ",count:3,desc:"3 مرات"},
-        {id:3,title:"سورة الفلق",zekr:"قُلْ أَعُوذُ بِرَبِّ الْفَلَقِ ۝ مِن شَرِّ مَا خَلَقَ ۝ وَمِن شَرِّ غَاسِقٍ إِذَا وَقَبَ ۝ وَمِن شَرِّ النَّفَّاثَاتِ فِي الْعُقَدِ ۝ وَمِن شَرِّ حَاسِدٍ إِذَا حَسَدَ",count:3,desc:"3 مرات"},
-        {id:4,title:"سورة الناس",zekr:"قُلْ أَعُوذُ بِرَبِّ النَّاسِ ۝ مَلِكِ النَّاسِ ۝ إِلَٰهِ النَّاسِ ۝ مِن شَرِّ الْوَسْوَاسِ الْخَنَّاسِ ۝ الَّذِي يُوَسْوِسُ فِي صُدُورِ النَّاسِ ۝ مِنَ الْجِنَّةِ وَالنَّاسِ",count:3,desc:"3 مرات"},
-        {id:5,title:"دعاء المساء",zekr:"أَمْسَيْنَا وَأَمْسَى الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ، وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ، رَبِّ أَسْأَلُكَ خَيْرَ مَا فِي هَذِهِ اللَّيْلَةِ وَخَيْرَ مَا بَعْدَهَا، وَأَعُوذُ بِكَ مِنْ شَرِّ مَا فِي هَذِهِ اللَّيْلَةِ وَشَرِّ مَا بَعْدَهَا.",count:1,desc:"مرة واحدة"},
-        {id:6,title:"سيد الاستغفار",zekr:"اللَّهُمَّ أنتَ رَبِّي لَا إِلَهَ إِلَّا أَنْتَ، خَلَقْتَنِي وَأَنَا عَبْدُكَ، وَأَنَا عَلَى عَهْدِكَ وَوَعْدِكَ مَا اسْتَطَعْتُ، أَعُوذُ بِكَ مِنْ شَرِّ مَا صَنَعْتُ، أَبُوءُ لَكَ بِنِعْمَتِكَ عَلَيَّ، وَأَبُوءُ بِذَنْبِي فَاغْفِرْ لِي، فَإِنَّهُ لَا يَغْفِرُ الذُّنُوبَ إِلَّا أَنْتَ.",count:1,desc:"مرة واحدة"},
-        {id:7,title:"دعاء العافية",zekr:"اللَّهُمَّ إِنِّي أَسْأَلُكَ الْعَفْوَ وَالْعَافِيَةَ فِي الدُّنْيَا وَالْآخِرَةِ، اللَّهُمَّ إِنِّي أَسْأَلُكَ الْعَفْوَ وَالْعَافِيَةَ فِي دِينِي وَدُنْيَايَ وَأَهْلِي وَمَالِي.",count:3,desc:"3 مرات"},
-        {id:8,title:"بسم الله الذي لا يضر",zekr:"بِسْمِ اللَّهِ الَّذِي لَا يَضُرُّ مَعَ اسْمِهِ شَيْءٌ فِي الْأَرْضِ وَلَا فِي السَّمَاءِ وَهُوَ السَّمِيعُ الْعَلِيمُ.",count:3,desc:"3 مرات"},
-        {id:9,title:"رضيت بالله رباً",zekr:"رَضِيتُ بِاللَّهِ رَبًّا، وَبِالْإِسْلَامِ دِينًا، وَبِمُحَمَّدٍ ﷺ نَبِيًّا.",count:3,desc:"3 مرات"},
-        {id:10,title:"سبحان الله وبحمده",zekr:"سُبْحَانَ اللَّهِ وَبِحَمْدِهِ.",count:100,desc:"100 مرة"},
-        {id:11,title:"لا إله إلا الله وحده لا شريك له",zekr:"لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ.",count:10,desc:"10 مرات"},
-        {id:12,title:"أستغفر الله وأتوب إليه",zekr:"أَسْتَغْفِرُ اللَّهَ وَأَتُوبُ إِلَيْهِ.",count:100,desc:"100 مرة"}
-    ]
+/* بيانات الأذكار */
+const AZKAR = {
+  'صباح': [
+    {id:1,title:"آية الكرسي",zekr:"اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ ۚ لَا تَأْخُذُهُ سِنَةٌ وَلَا نَوْمٌ ۚ لَّهُ مَا فِي السَّمَاوَاتِ وَمَا فِي الْأَرْضِ ۗ مَن ذَا الَّذِي يَشْفَعُ عِندَهُ إِلَّا بِإِذْنِهِ ۚ يَعْلَمُ مَا بَيْنَ أَيْدِيهِمْ وَمَا خَلْفَهُمْ ۖ وَلَا يُحِيطُونَ بِشَيْءٍ مِّنْ عِلْمِهِ إِلَّا بِمَا شَاءَ ۚ وَسِعَ كُرْسِيُّهُ السَّمَاوَاتِ وَالْأَرْضَ ۖ وَلَا يَئُودُهُ حِفْظُهُمَا ۚ وَهُوَ الْعَلِيُّ الْعَظِيمُ.",count:1,desc:"مرة واحدة"},
+    {id:2,title:"سورة الإخلاص",zekr:"قُلْ هُوَ اللَّهُ أَحَدٌ ۝ اللَّهُ الصَّمَدُ ۝ لَمْ يَلِدْ وَلَمْ يُولَدْ ۝ وَلَمْ يَكُن لَّهُ كُفُوًا أَحَدٌ",count:3,desc:"3 مرات"},
+    {id:3,title:"سورة الفلق",zekr:"قُلْ أَعُوذُ بِرَبِّ الْفَلَقِ ۝ مِن شَرِّ مَا خَلَقَ ۝ وَمِن شَرِّ غَاسِقٍ إِذَا وَقَبَ ۝ وَمِن شَرِّ النَّفَّاثَاتِ فِي الْعُقَدِ ۝ وَمِن شَرِّ حَاسِدٍ إِذَا حَسَدَ",count:3,desc:"3 مرات"},
+    {id:4,title:"سورة الناس",zekr:"قُلْ أَعُوذُ بِرَبِّ النَّاسِ ۝ مَلِكِ النَّاسِ ۝ إِلَٰهِ النَّاسِ ۝ مِن شَرِّ الْوَسْوَاسِ الْخَنَّاسِ ۝ الَّذِي يُوَسْوِسُ فِي صُدُورِ النَّاسِ ۝ مِنَ الْجِنَّةِ وَالنَّاسِ",count:3,desc:"3 مرات"},
+    {id:5,title:"دعاء الصباح",zekr:"أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ، وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ.",count:1,desc:"مرة واحدة"},
+    {id:6,title:"سيد الاستغفار",zekr:"اللَّهُمَّ أَنْتَ رَبِّي لَا إِلَهَ إِلَّا أَنْتَ، خَلَقْتَنِي وَأَنَا عَبْدُكَ، وَأَنَا عَلَى عَهْدِكَ وَوَعْدِكَ مَا اسْتَطعتُ، أَعُوذُ بِكَ مِنْ شَرِّ مَا صَنَعْتُ، أَبُوءُ لَكَ بِنِعْمَتِكَ عَلَيَّ، وَأَبُوءُ بِذَنْبِي فَاغْفِرْ لِي، فَإِنَّهُ لَا يَغْفِرُ الذُّنُوبَ إِلَّا أَنْتَ.",count:1,desc:"مرة واحدة"},
+    {id:7,title:"دعاء العافية",zekr:"اللَّهُمَّ عَافِنِي فِي بَدَنِي، اللَّهُمَّ عَافِنِي فِي سَمْعِي، اللَّهُمَّ عَافِنِي فِي بَصَرِي، لَا إِلَهَ إِلَّا أَنْتَ.",count:3,desc:"3 مرات"},
+    {id:8,title:"بسم الله الذي لا يضر",zekr:"بِسْمِ اللَّهِ الَّذِي لَا يَضُرُّ مَعَ اسْمِهِ شَيْءٌ فِي الْأَرْضِ وَلَا فِي السَّمَاءِ وَهُوَ السَّمِيعُ الْعَلِيمُ.",count:3,desc:"3 مرات"},
+    {id:9,title:"رضيت بالله رباً",zekr:"رَضِيتُ بِاللَّهِ رَبًّا، وَبِالْإِسْلَامِ دِينًا، وَبِمُحَمَّدٍ ﷺ نَبِيًّا.",count:3,desc:"3 مرات"},
+    {id:10,title:"سبحان الله وبحمده",zekr:"سُبْحَانَ اللَّهِ وَبِحَمْدِهِ.",count:100,desc:"100 مرة"},
+    {id:11,title:"لا إله إلا الله وحده",zekr:"لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ.",count:10,desc:"10 مرات"},
+    {id:12,title:"أستغفر الله وأتوب إليه",zekr:"أَسْتَغْفِرُ اللَّهَ وَأَتُوبُ إِلَيْهِ.",count:100,desc:"100 مرة"}
+  ],
+  'مساء': [
+    {id:1,title:"آية الكرسي",zekr:"اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ ۚ لَا تَأْخُذُهُ سِنَةٌ وَلَا نَوْمٌ ۚ لَّهُ مَا فِي السَّمَاوَاتِ وَمَا فِي الْأَرْضِ ۗ مَن ذَا الَّذِي يَشْفَعُ عِندَهُ إِلَّا بِإِذْنِهِ ۚ يَعْلَمُ مَا بَيْنَ أَيْدِيهِمْ وَمَا خَلْفَهُمْ ۖ وَلَا يُحِيطُونَ بِشَيْءٍ مِّنْ عِلْمِهِ إِلَّا بِمَا شَاءَ ۚ وَسِعَ كُرْسِيُّهُ السَّمَاوَاتِ وَالْأَرْضَ ۖ وَلَا يَئُودُهُ حِفْظُهُمَا ۚ وَهُوَ الْعَلِيُّ الْعَظِيمُ.",count:1,desc:"مرة واحدة"},
+    {id:2,title:"سورة الإخلاص",zekr:"قُلْ هُوَ اللَّهُ أَحَدٌ ۝ اللَّهُ الصَّمَدُ ۝ لَمْ يَلِدْ وَلَمْ يُولَدْ ۝ وَلَمْ يَكُن لَّهُ كُفُوًا أَحَدٌ",count:3,desc:"3 مرات"},
+    {id:3,title:"سورة الفلق",zekr:"قُلْ أَعُوذُ بِرَبِّ الْفَلَقِ ۝ مِن شَرِّ مَا خَلَقَ ۝ وَمِن شَرِّ غَاسِقٍ إِذَا وَقَبَ ۝ وَمِن شَرِّ النَّفَّاثَاتِ فِي الْعُقَدِ ۝ وَمِن شَرِّ حَاسِدٍ إِذَا حَسَدَ",count:3,desc:"3 مرات"},
+    {id:4,title:"سورة الناس",zekr:"قُلْ أَعُوذُ بِرَبِّ النَّاسِ ۝ مَلِكِ النَّاسِ ۝ إِلَٰهِ النَّاسِ ۝ مِن شَرِّ الْوَسْوَاسِ الْخَنَّاسِ ۝ الَّذِي يُوَسْوِسُ فِي صُدُورِ النَّاسِ ۝ مِنَ الْجِنَّةِ وَالنَّاسِ",count:3,desc:"3 مرات"},
+    {id:5,title:"دعاء المساء",zekr:"أَمْسَيْنَا وَأَمْسَى الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ، وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ.",count:1,desc:"مرة واحدة"},
+    {id:6,title:"سيد الاستغفار",zekr:"اللَّهُمَّ أَنْتَ رَبِّي لَا إِلَهَ إِلَّا أَنْتَ، خَلَقْتَنِي وَأَنَا عَبْدُكَ، وَأَنَا عَلَى عَهْدِكَ وَوَعْدِكَ مَا اسْتَطَعْتُ، أَعُوذُ بِكَ مِنْ شَرِّ مَا صَنَعْتُ، أَبُوءُ لَكَ بِنِعْمَتِكَ عَلَيَّ، وَأَبُوءُ بِذَنْبِي فَاغْفِرْ لِي، فَإِنَّهُ لَا يَغْفِرُ الذُّنُوبَ إِلَّا أَنْتَ.",count:1,desc:"مرة واحدة"},
+    {id:7,title:"دعاء العافية",zekr:"اللَّهُمَّ إِنِّي أَسْأَلُكَ الْعَفْوَ وَالْعَافِيَةَ فِي الدُّنْيَا وَالْآخِرَةِ، اللَّهُمَّ إِنِّي أَسْأَلُكَ الْعَفْوَ وَالْعَافِيَةَ فِي دِينِي وَدُنْيَايَ وَأَهْلِي وَمَالِي.",count:3,desc:"3 مرات"},
+    {id:8,title:"بسم الله الذي لا يضر",zekr:"بِسْمِ اللَّهِ الَّذِي لَا يَضُرُّ مَعَ اسْمِهِ شَيْءٌ فِي الْأَرْضِ وَلَا فِي السَّمَاءِ وَهُوَ السَّمِيعُ الْعَلِيمُ.",count:3,desc:"3 مرات"},
+    {id:9,title:"رضيت بالله رباً",zekr:"رَضِيتُ بِاللَّهِ رَبًّا، وَبِالْإِسْلَامِ دِينًا، وَبِمُحَمَّدٍ ﷺ نَبِيًّا.",count:3,desc:"3 مرات"},
+    {id:10,title:"سبحان الله وبحمده",zekr:"سُبْحَانَ اللَّهِ وَبِحَمْدِهِ.",count:100,desc:"100 مرة"},
+    {id:11,title:"لا إله إلا الله وحده",zekr:"لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ.",count:10,desc:"10 مرات"},
+    {id:12,title:"أستغفر الله وأتوب إليه",zekr:"أَسْتَغْفِرُ اللَّهَ وَأَتُوبُ إِلَيْهِ.",count:100,desc:"100 مرة"}
+  ]
 };
 
-/* ===== الحالة العامة للتطبيق ===== */
-let currentCat = 'صباح';
-let progress = JSON.parse(localStorage.getItem('azkarProgress')) || {};
-let lifetimeCount = parseInt(localStorage.getItem('lifetimeCount')) || 0;
-
-/* حجوم خط القرآن المتاحة مع أسمائها */
-const fontSizes = [
-    { size: '0.95rem', label: 'صغير جداً' },
-    { size: '1.1rem',  label: 'صغير' },
-    { size: '1.25rem', label: 'متوسط' },
-    { size: '1.5rem',  label: 'كبير' },
-    { size: '1.85rem', label: 'كبير جداً' }
+/* حجوم خط القرآن */
+const FONT_SIZES = [
+  {size:'0.75rem',label:'صغير جداً'},
+  {size:'0.85rem',label:'صغير'},
+  {size:'1.0rem', label:'أقل من متوسط'},
+  {size:'1.15rem',label:'متوسط صغير'},
+  {size:'1.3rem', label:'متوسط'},
+  {size:'1.55rem',label:'كبير'},
+  {size:'1.9rem', label:'كبير جداً'}
 ];
-let currentFontIdx = parseInt(localStorage.getItem('quranFontIdx')) || 2;
 
-function getTodayKey() { return new Date().toDateString(); }
-let tasksData = JSON.parse(localStorage.getItem('tasksData')) || {};
-if (!tasksData[getTodayKey()]) {
-    tasksData = { [getTodayKey()]: [
-        { id:'quran', text:'قراءة ورد القرآن 📖', done:false },
-        { id:'sabah', text:'أذكار الصباح 🌤️', done:false },
-        { id:'masaa', text:'أذكار المساء 🌙', done:false }
-    ]};
-    localStorage.setItem('tasksData', JSON.stringify(tasksData));
+/* ══════════════════════════════
+   الحالة العامة
+══════════════════════════════ */
+let currentCat    = 'صباح';
+let progress      = {};
+let lifetimeCount = 0;
+let currentFontIdx = 4;
+let missedTasks   = [];
+let pageStack     = ['homePage'];
+let isNavigating  = false;
+let toastTimer    = null;
+let scheduledNotifs = {};
+
+/* ══ تهيئة الـ localStorage بأمان ══ */
+function loadStorage() {
+  try {
+    progress      = JSON.parse(localStorage.getItem('azkarProgress') || '{}');
+    lifetimeCount = parseInt(localStorage.getItem('lifetimeCount') || '0', 10) || 0;
+    currentFontIdx = parseInt(localStorage.getItem('quranFontIdx') || '4', 10);
+    if (isNaN(currentFontIdx) || currentFontIdx < 0 || currentFontIdx > 6) currentFontIdx = 4;
+  } catch(e) { progress = {}; lifetimeCount = 0; }
 }
-let missedTasks = tasksData[getTodayKey()];
 
-/* مكدس تاريخ الصفحات للتنقل بالرجوع */
-let pageStack = ['homePage'];
-let isNavigating = false;
+/* ══ مفتاح اليوم للأذكار (يضمن تصفير يومي) ══ */
+function getTodayKey() {
+  return new Date().toDateString();
+}
 
-/* ===== التنقل بين الصفحات ===== */
+/* ══ تهيئة مهام اليوم - مع تنظيف الأيام القديمة ══ */
+function initTasks() {
+  let allTasks = {};
+  try { allTasks = JSON.parse(localStorage.getItem('tasksData') || '{}'); } catch(e) {}
+
+  const today = getTodayKey();
+
+  /* حذف الأيام القديمة (أكثر من 7 أيام) للحفاظ على localStorage نظيفاً */
+  const now = Date.now();
+  Object.keys(allTasks).forEach(k => {
+    if (now - new Date(k).getTime() > 7 * 24 * 60 * 60 * 1000) delete allTasks[k];
+  });
+
+  if (!allTasks[today]) {
+    allTasks[today] = [
+      {id:'quran', text:'قراءة ورد القرآن',  done:false},
+      {id:'sabah', text:'أذكار الصباح',       done:false},
+      {id:'masaa', text:'أذكار المساء',        done:false}
+    ];
+  }
+  localStorage.setItem('tasksData', JSON.stringify(allTasks));
+  missedTasks = allTasks[today];
+}
+
+/* ══ تصفير عداد الأذكار اليومي تلقائياً ══ */
+function checkDailyReset() {
+  const lastDay = localStorage.getItem('progressDay');
+  const today   = getTodayKey();
+  if (lastDay !== today) {
+    /* يوم جديد: تصفير التقدم اليومي */
+    progress = {};
+    localStorage.setItem('azkarProgress', '{}');
+    localStorage.setItem('progressDay', today);
+  }
+}
+
+/* ══════════════════════════════
+   التنقل بين الصفحات
+══════════════════════════════ */
 function showPage(id, isBack = false) {
-    if (isNavigating) return;
-    isNavigating = true;
+  if (isNavigating) return;
+  const current = document.querySelector('.page.active');
+  const next    = document.getElementById(id);
+  if (!next || current === next) return;
 
-    const current = document.querySelector('.page.active');
-    const next = document.getElementById(id);
-    if (!next || current === next) { isNavigating = false; return; }
+  isNavigating = true;
 
-    current.classList.remove('active');
-    next.classList.remove('animate-in', 'animate-back');
-    next.classList.add('active');
+  /* إزالة will-change بعد الانيميشن لتحرير GPU */
+  current.classList.add('will-animate');
+  next.classList.add('will-animate');
 
-    /* تشغيل الانيميشن بعد reflow قصير */
-    void next.offsetWidth;
-    next.classList.add(isBack ? 'animate-back' : 'animate-in');
+  current.classList.remove('active');
+  next.classList.remove('animate-in', 'animate-back');
+  next.classList.add('active');
 
-    setTimeout(() => { isNavigating = false; }, 420);
+  void next.offsetWidth; /* force reflow */
+  next.classList.add(isBack ? 'animate-back' : 'animate-in');
 
-    /* إدارة مكدس الصفحات */
-    if (isBack) {
-        if (pageStack.length > 1) pageStack.pop();
-    } else {
-        if (pageStack[pageStack.length - 1] !== id) pageStack.push(id);
-    }
+  setTimeout(() => {
+    isNavigating = false;
+    current.classList.remove('will-animate');
+    next.classList.remove('will-animate', 'animate-in', 'animate-back');
+  }, 380);
 
-    /* دفع حالة جديدة في المتصفح ليعمل زر الرجوع */
-    window.history.pushState({ page: id }, '', '');
+  /* مكدس الصفحات */
+  if (isBack) { if (pageStack.length > 1) pageStack.pop(); }
+  else { if (pageStack[pageStack.length - 1] !== id) pageStack.push(id); }
 
-    /* إخفاء شريط التنقل في الصفحات الفرعية */
-    const hideOn = ['azkarPage','quranPage','surahView','settingsPage'];
-    document.body.classList.toggle('nav-hidden', hideOn.includes(id));
+  window.history.pushState({page: id}, '', '');
 
-    /* تحريك مؤشر شريط التنقل السفلي */
-    const indicator = document.getElementById('navIndicator');
-    if (id === 'homePage') {
-        indicator.style.transform = 'translateX(0)';
-        document.getElementById('nav-home').style.opacity = "1";
-        document.getElementById('nav-profile').style.opacity = "0.4";
-    } else if (id === 'profilePage') {
-        indicator.style.transform = 'translateX(calc(-100% - 10px))';
-        document.getElementById('nav-home').style.opacity = "0.4";
-        document.getElementById('nav-profile').style.opacity = "1";
-    }
+  /* شريط التنقل */
+  const hideOn = ['azkarPage', 'quranPage', 'surahView'];
+  document.body.classList.toggle('nav-hidden', hideOn.includes(id));
 
-    updateStats();
-    window.scrollTo(0, 0);
+  /* مؤشر الشريط */
+  const ind = document.getElementById('navIndicator');
+  if (id === 'homePage') {
+    ind.style.transform = 'translateX(0)';
+    document.getElementById('nav-home').style.opacity    = '1';
+    document.getElementById('nav-profile').style.opacity = '0.4';
+  } else if (id === 'profilePage') {
+    ind.style.transform = 'translateX(calc(-100% - 10px))';
+    document.getElementById('nav-home').style.opacity    = '0.4';
+    document.getElementById('nav-profile').style.opacity = '1';
+  }
+
+  /* تحميل القرآن عند أول زيارة فقط */
+  if (id === 'quranPage' && !window._surahsLoaded) {
+    window._surahsLoaded = true;
+    fetchSurahs();
+  }
+
+  updateStats();
+  window.scrollTo(0, 0);
 }
 
-/* معالجة زر الرجوع في أندرويد وiOS */
-window.addEventListener('popstate', function(e) {
-    if (pageStack.length > 1) {
-        const prev = pageStack[pageStack.length - 2];
-        showPage(prev, true);
-    } else {
-        /* في الجذر - دفع حالة جديدة لمنع الخروج */
-        window.history.pushState({ page: 'homePage' }, '', '');
-    }
+window.addEventListener('popstate', () => {
+  if (pageStack.length > 1) {
+    showPage(pageStack[pageStack.length - 2], true);
+  } else {
+    window.history.pushState({page:'homePage'}, '', '');
+  }
 });
 
-/* ===== السحب للرجوع (iOS + Android) ===== */
-let swipeStartX = 0;
-let swipeStartY = 0;
-let swipeDist = 0;
-const swipeHint = document.getElementById('swipeHint');
+/* ══════════════════════════════
+   السحب للرجوع
+══════════════════════════════ */
+(function() {
+  let startX = 0, startY = 0;
+  const hint = document.getElementById('swipeHint');
 
-document.addEventListener('touchstart', function(e) {
-    swipeStartX = e.touches[0].clientX;
-    swipeStartY = e.touches[0].clientY;
-    if (swipeStartX < 30) { swipeHint.classList.add('visible'); }
-}, { passive: true });
+  document.addEventListener('touchstart', e => {
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    if (startX < 28) hint.classList.add('visible');
+  }, {passive: true});
 
-document.addEventListener('touchmove', function(e) {
-    swipeDist = e.touches[0].clientX - swipeStartX;
-}, { passive: true });
-
-document.addEventListener('touchend', function() {
-    swipeHint.classList.remove('visible');
-    const dy = Math.abs(event.changedTouches[0].clientY - swipeStartY);
-    /* سحب من اليسار بمسافة كافية أفقياً مع حركة رأسية محدودة */
-    if (swipeStartX < 40 && swipeDist > 60 && dy < 80 && pageStack.length > 1) {
-        const prev = pageStack[pageStack.length - 2];
-        showPage(prev, true);
+  document.addEventListener('touchend', e => {
+    hint.classList.remove('visible');
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = Math.abs(e.changedTouches[0].clientY - startY);
+    if (startX < 38 && dx > 55 && dy < 70 && pageStack.length > 1) {
+      showPage(pageStack[pageStack.length - 2], true);
     }
-    swipeDist = 0;
-}, { passive: true });
+  }, {passive: true});
+})();
 
-/* ===== نظام النوافذ المنبثقة ===== */
+/* ══════════════════════════════
+   النوافذ المنبثقة
+══════════════════════════════ */
 function openModal(id) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.classList.add('open');
-    document.body.style.overflow = 'hidden';
+  const el = document.getElementById(id);
+  if (el) { el.classList.add('open'); document.body.style.overflow = 'hidden'; }
 }
 function closeModal(id) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.classList.remove('open');
-    document.body.style.overflow = '';
+  const el = document.getElementById(id);
+  if (el) { el.classList.remove('open'); document.body.style.overflow = ''; }
 }
 
-/* إغلاق النافذة عند الضغط خارجها */
+/* إغلاق بالضغط خارج النافذة */
 document.querySelectorAll('.custom-modal-overlay').forEach(overlay => {
-    overlay.addEventListener('click', function(e) {
-        if (e.target === this) closeModal(this.id);
-    });
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(overlay.id); });
 });
 
 function showAlert(icon, title, body) {
-    document.getElementById('alertModalIcon').textContent = icon;
-    document.getElementById('alertModalTitle').textContent = title;
-    document.getElementById('alertModalBody').textContent = body;
-    openModal('alertModal');
+  document.getElementById('alertModalIcon').textContent = icon;
+  document.getElementById('alertModalTitle').textContent = title;
+  document.getElementById('alertModalBody').textContent  = body;
+  openModal('alertModal');
 }
 
 function showToast(msg) {
-    const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 2800);
+  const t = document.getElementById('toast');
+  if (toastTimer) clearTimeout(toastTimer);
+  t.textContent = msg;
+  t.classList.add('show');
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
 }
 
-/* ===== تأكيد تصفير العداد (بدل confirm() المدمج) ===== */
+/* ══════════════════════════════
+   الأذكار
+══════════════════════════════ */
 function confirmReset() {
-    document.getElementById('confirmModalTitle').textContent = `تصفير أذكار ${currentCat}`;
-    document.getElementById('confirmModalBody').textContent = `هل أنت متأكد من تصفير عداد أذكار ${currentCat}؟ لا يمكن التراجع.`;
-    document.getElementById('confirmModalYes').onclick = function() {
-        doReset();
-        closeModal('confirmModal');
-    };
-    openModal('confirmModal');
+  document.getElementById('confirmModalTitle').textContent = `تصفير أذكار ${currentCat}`;
+  document.getElementById('confirmModalBody').textContent  = `هل أنت متأكد من تصفير أذكار ${currentCat}؟`;
+  document.getElementById('confirmModalYes').onclick = () => { doReset(); closeModal('confirmModal'); };
+  openModal('confirmModal');
 }
+
 function doReset() {
-    azkarStatic[currentCat].forEach((_, idx) => {
-        delete progress[`${currentCat}-${idx}`];
-    });
-    localStorage.setItem('azkarProgress', JSON.stringify(progress));
-    renderAzkar();
-    updateStats();
-    showToast(`✅ تم تصفير أذكار ${currentCat}`);
+  AZKAR[currentCat].forEach((_, i) => delete progress[`${currentCat}-${i}`]);
+  saveProgress();
+  renderAzkar();
+  updateStats();
+  showToast(`تم تصفير أذكار ${currentCat}`);
 }
 
-/* ===== الأذكار ===== */
 function switchTab(cat) {
-    currentCat = cat;
-    const active = 'flex-1 py-3 rounded-xl font-bold bg-emerald-600 text-white shadow-lg transition-all glow-hover';
-    const inactive = 'flex-1 py-3 rounded-xl font-bold text-gray-400 transition-all glow-hover';
-    document.getElementById('sabah-btn').className = cat === 'صباح' ? active : inactive;
-    document.getElementById('masaa-btn').className = cat === 'مساء' ? active : inactive;
-    renderAzkar();
+  currentCat = cat;
+  const activeClass   = 'flex-1 py-3 rounded-xl font-bold bg-emerald-600 text-white shadow-md transition-all text-sm';
+  const inactiveClass = 'flex-1 py-3 rounded-xl font-bold text-gray-400 transition-all text-sm';
+  document.getElementById('sabah-btn').className = cat === 'صباح' ? activeClass : inactiveClass;
+  document.getElementById('masaa-btn').className = cat === 'مساء' ? activeClass : inactiveClass;
+  renderAzkar();
 }
 
+/* استخدام DocumentFragment لتقليل reflows */
 function renderAzkar() {
-    const list = document.getElementById('azkar-list');
-    list.innerHTML = (azkarStatic[currentCat] || []).map((item, idx) => {
-        const key = `${currentCat}-${idx}`;
-        const count = progress[key] || 0;
-        const isDone = count >= item.count;
-        const pct = Math.round((count / item.count) * 100);
-        return `<div class="zekr-card text-right">
-            <div class="flex justify-between items-center mb-1">
-                <span class="text-xs text-emerald-600 font-bold">${item.id}) ${item.title}</span>
-                <span class="text-[10px] opacity-60 font-bold">${item.desc}</span>
-            </div>
-            <div class="text-lg font-bold mb-3 quran-font leading-relaxed">${item.zekr}</div>
-            ${item.count > 1 ? `<div class="w-full bg-gray-200/60 dark:bg-gray-700/60 rounded-full h-1.5 mb-3 overflow-hidden">
-                <div class="bg-emerald-500 h-full rounded-full transition-all duration-500" style="width:${pct}%"></div>
-            </div>` : ''}
-            <button onclick="pressCount('${key}', ${item.count})" class="count-btn ${isDone ? 'done' : 'active'} glow-hover">
-                ${isDone ? '✅ أحسنت! تم' : `اضغط للتكرار (${count} / ${item.count})`}
-            </button>
-        </div>`;
-    }).join('');
+  const list = document.getElementById('azkar-list');
+  const frag = document.createDocumentFragment();
+
+  (AZKAR[currentCat] || []).forEach((item, idx) => {
+    const key   = `${currentCat}-${idx}`;
+    const count = progress[key] || 0;
+    const isDone = count >= item.count;
+    const pct   = Math.round((count / item.count) * 100);
+
+    const card = document.createElement('div');
+    card.className = 'zekr-card text-right';
+
+    let progressBar = '';
+    if (item.count > 1) {
+      progressBar = `<div class="w-full bg-gray-200/60 dark:bg-gray-700/60 rounded-full h-1.5 mb-3 overflow-hidden">
+        <div class="bg-emerald-500 h-full rounded-full" style="width:${pct}%;transition:width 0.4s ease"></div>
+      </div>`;
+    }
+
+    card.innerHTML = `
+      <div class="flex justify-between items-center mb-1">
+        <span class="text-xs text-emerald-600 font-bold">${item.id}) ${item.title}</span>
+        <span class="text-[10px] opacity-60 font-bold">${item.desc}</span>
+      </div>
+      <div class="text-lg font-bold mb-3 quran-font leading-relaxed">${item.zekr}</div>
+      ${progressBar}
+      <button data-key="${key}" data-max="${item.count}" class="count-btn ${isDone ? 'done' : 'active'}">
+        ${isDone ? '✓ أحسنت! تم' : `اضغط للتكرار (${count} / ${item.count})`}
+      </button>`;
+
+    frag.appendChild(card);
+  });
+
+  list.innerHTML = '';
+  list.appendChild(frag);
+
+  /* تفويض الأحداث بدلاً من مستمع لكل زر */
+  list.onclick = e => {
+    const btn = e.target.closest('.count-btn');
+    if (!btn) return;
+    pressCount(btn.dataset.key, parseInt(btn.dataset.max, 10));
+  };
 }
 
 function pressCount(key, max) {
-    if (!progress[key]) progress[key] = 0;
-    if (progress[key] < max) {
-        progress[key]++;
-        lifetimeCount++;
-        localStorage.setItem('azkarProgress', JSON.stringify(progress));
-        localStorage.setItem('lifetimeCount', lifetimeCount);
-        if (progress[key] === max) showToast('🎉 أحسنت! اكتملت هذه الذكرة');
-        renderAzkar();
-        updateStats();
-    }
+  if (!progress[key]) progress[key] = 0;
+  if (progress[key] < max) {
+    progress[key]++;
+    lifetimeCount++;
+    saveProgress();
+    if (progress[key] === max) showToast('أحسنت! اكتملت هذه الذكرة');
+    renderAzkar();
+    updateStats();
+  }
 }
 
-/* ===== مهام اليوم (تدارك ما فاتك) ===== */
+function saveProgress() {
+  try {
+    localStorage.setItem('azkarProgress', JSON.stringify(progress));
+    localStorage.setItem('lifetimeCount', lifetimeCount);
+  } catch(e) {}
+}
+
+/* ══════════════════════════════
+   مهام اليوم
+══════════════════════════════ */
 function renderMissedTasks() {
-    const container = document.getElementById('missedTasksContainer');
-    /* كل مستطيل قابل للضغط بالكامل وليس فقط الشيك بوكس */
-    container.innerHTML = missedTasks.map((task, idx) => `
-        <div class="missed-task-card ${task.done ? 'done-card' : ''}" onclick="toggleTask(${idx})">
-            <span class="text-xs font-bold ${task.done ? 'line-through opacity-40' : ''}">${task.text}</span>
-            <div class="w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200
-                ${task.done ? 'bg-emerald-500 border-emerald-500' : 'border-gray-300 dark:border-gray-600'}">
-                ${task.done ? '<svg viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-3 h-3"><path d="M2 6l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
-            </div>
-        </div>`).join('');
+  const container = document.getElementById('missedTasksContainer');
+  const frag = document.createDocumentFragment();
+
+  missedTasks.forEach((task, idx) => {
+    const div = document.createElement('div');
+    div.className = `missed-task-card${task.done ? ' done-card' : ''}`;
+    div.dataset.idx = idx;
+    div.innerHTML = `
+      <span class="text-xs font-bold${task.done ? ' line-through opacity-40' : ''}">${task.text}</span>
+      <div class="w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200
+        ${task.done ? 'bg-emerald-500 border-emerald-500' : 'border-gray-300 dark:border-gray-600'}">
+        ${task.done ? '<svg viewBox="0 0 12 12" fill="none" width="12" height="12"><path d="M2 6l3 3 5-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
+      </div>`;
+    frag.appendChild(div);
+  });
+
+  container.innerHTML = '';
+  container.appendChild(frag);
+
+  /* تفويض الحدث */
+  container.onclick = e => {
+    const card = e.target.closest('.missed-task-card');
+    if (!card) return;
+    toggleTask(parseInt(card.dataset.idx, 10));
+  };
 }
 
 function toggleTask(idx) {
-    missedTasks[idx].done = !missedTasks[idx].done;
-    tasksData[getTodayKey()] = missedTasks;
-    localStorage.setItem('tasksData', JSON.stringify(tasksData));
-    renderMissedTasks();
+  missedTasks[idx].done = !missedTasks[idx].done;
+
+  let allTasks = {};
+  try { allTasks = JSON.parse(localStorage.getItem('tasksData') || '{}'); } catch(e) {}
+  allTasks[getTodayKey()] = missedTasks;
+  try { localStorage.setItem('tasksData', JSON.stringify(allTasks)); } catch(e) {}
+
+  renderMissedTasks();
 }
 
-/* ===== الإحصائيات ===== */
+/* ══════════════════════════════
+   الإحصائيات
+══════════════════════════════ */
 function updateStats() {
-    let daily = Object.values(progress).reduce((a, b) => a + b, 0);
-    document.getElementById('dailyCount').innerText = daily;
-    document.getElementById('totalLifetime').innerText = lifetimeCount;
+  const daily = Object.values(progress).reduce((a, b) => a + b, 0);
+  document.getElementById('dailyCount').textContent   = daily;
+  document.getElementById('totalLifetime').textContent = lifetimeCount;
 }
 
-/* ===== الوضع الليلي ===== */
+/* ══════════════════════════════
+   الوضع الليلي
+══════════════════════════════ */
 function toggleDarkMode() {
-    document.documentElement.classList.toggle('dark');
-    localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+  document.documentElement.classList.toggle('dark');
+  try { localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light'); } catch(e) {}
 }
 
-/* ===== البروفايل ===== */
+/* ══════════════════════════════
+   البروفايل
+══════════════════════════════ */
 function editProfile() {
-    document.getElementById('userNameInput').value = localStorage.getItem('userName') || "";
-    document.getElementById('userBioInput').value = localStorage.getItem('userBio') || "";
-    document.getElementById('bgInput').value = localStorage.getItem('userBg') || "";
-    openModal('editProfileModal');
+  document.getElementById('userNameInput').value = localStorage.getItem('userName') || '';
+  document.getElementById('userBioInput').value  = localStorage.getItem('userBio')  || '';
+  document.getElementById('bgInput').value       = localStorage.getItem('userBg')   || '';
+  openModal('editProfileModal');
 }
-function closeEditProfile() { closeModal('editProfileModal'); }
 
 function saveProfile() {
-    const name = document.getElementById('userNameInput').value.trim();
-    const bio = document.getElementById('userBioInput').value.trim();
-    const bg = document.getElementById('bgInput').value.trim();
-    localStorage.setItem('userName', name || "مستخدم جديد");
-    localStorage.setItem('userBio', bio || "خصص بروفايلك الآن");
-    localStorage.setItem('userBg', bg);
-    applyProfileData();
-    closeEditProfile();
-    showToast('✅ تم حفظ البيانات');
+  const name = document.getElementById('userNameInput').value.trim() || 'مستخدم جديد';
+  const bio  = document.getElementById('userBioInput').value.trim()  || 'خصص بروفايلك الآن';
+  const bg   = document.getElementById('bgInput').value.trim();
+  try {
+    localStorage.setItem('userName', name);
+    localStorage.setItem('userBio',  bio);
+    localStorage.setItem('userBg',   bg);
+  } catch(e) {}
+  applyProfileData();
+  closeModal('editProfileModal');
+  showToast('تم حفظ البيانات');
 }
 
 function applyProfileData() {
-    const name = localStorage.getItem('userName') || "مستخدم جديد";
-    const bio = localStorage.getItem('userBio') || "خصص بروفايلك الآن";
-    const bg = localStorage.getItem('userBg') || "";
-    document.getElementById('displayUserName').innerText = name;
-    document.getElementById('displayUserBio').innerText = bio;
-    document.getElementById('userInitial').innerText = name.charAt(0);
-    const header = document.getElementById('profileHeaderCard');
-    if (bg.startsWith('http')) {
-        header.style.backgroundImage = `url('${bg}')`;
-        header.style.backgroundColor = "transparent";
-    } else if (bg.startsWith('#')) {
-        header.style.backgroundImage = "none";
-        header.style.backgroundColor = bg;
-    } else {
-        header.style.backgroundImage = "none";
-        header.style.background = "linear-gradient(135deg, #059669, #064e3b)";
-    }
+  const name = localStorage.getItem('userName') || 'مستخدم جديد';
+  const bio  = localStorage.getItem('userBio')  || 'خصص بروفايلك الآن';
+  const bg   = localStorage.getItem('userBg')   || '';
+
+  document.getElementById('displayUserName').textContent = name;
+  document.getElementById('displayUserBio').textContent  = bio;
+  document.getElementById('userInitial').textContent     = name.charAt(0) || '؟';
+
+  const header = document.getElementById('profileHeaderCard');
+  if (bg.startsWith('http')) {
+    header.style.backgroundImage  = `url('${bg}')`;
+    header.style.backgroundColor  = 'transparent';
+  } else if (bg.startsWith('#')) {
+    header.style.backgroundImage  = 'none';
+    header.style.backgroundColor  = bg;
+  } else {
+    header.style.backgroundImage  = 'none';
+    header.style.background       = 'linear-gradient(135deg,#059669,#064e3b)';
+  }
 }
 
-/* ===== منتقي الوقت المخصص ===== */
-
-/* حالة كل منتقي وقت */
+/* ══════════════════════════════
+   منتقي الوقت
+══════════════════════════════ */
 const pickerState = {
-    morning: { hour: null, minute: null, ampm: 'AM' },
-    evening: { hour: null, minute: null, ampm: 'PM' },
-    quran:   { hour: null, minute: null, ampm: 'AM' }
+  morning: {hour:null, minute:null, ampm:'AM'},
+  evening: {hour:null, minute:null, ampm:'PM'},
+  quran:   {hour:null, minute:null, ampm:'AM'}
 };
 
-/* بناء عناصر الساعات والدقائق في كل منتقي */
+function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
 function buildTimePicker(name) {
-    const hoursEl   = document.getElementById('hours'   + capitalize(name));
-    const minutesEl = document.getElementById('minutes' + capitalize(name));
+  const hEl = document.getElementById('hours'   + cap(name));
+  const mEl = document.getElementById('minutes' + cap(name));
 
-    /* بناء الساعات 1-12 */
-    hoursEl.innerHTML = '<div class="time-picker-spacer"></div>';
-    for (let h = 1; h <= 12; h++) {
-        const div = document.createElement('div');
-        div.className = 'time-picker-item';
-        div.textContent = String(h).padStart(2, '0');
-        hoursEl.appendChild(div);
-    }
-    hoursEl.innerHTML += '<div class="time-picker-spacer"></div>';
+  const hFrag = document.createDocumentFragment();
+  const mFrag = document.createDocumentFragment();
 
-    /* بناء الدقائق 00-59 */
-    minutesEl.innerHTML = '<div class="time-picker-spacer"></div>';
-    for (let m = 0; m < 60; m++) {
-        const div = document.createElement('div');
-        div.className = 'time-picker-item';
-        div.textContent = String(m).padStart(2, '0');
-        minutesEl.appendChild(div);
-    }
-    minutesEl.innerHTML += '<div class="time-picker-spacer"></div>';
+  const spacerH1 = document.createElement('div'); spacerH1.className = 'time-picker-spacer'; hFrag.appendChild(spacerH1);
+  for (let h = 1; h <= 12; h++) {
+    const d = document.createElement('div'); d.className = 'time-picker-item'; d.textContent = String(h).padStart(2,'0'); hFrag.appendChild(d);
+  }
+  const spacerH2 = document.createElement('div'); spacerH2.className = 'time-picker-spacer'; hFrag.appendChild(spacerH2);
 
-    /* ضبط القيم الأولية */
-    setPickerScroll(name, 6, 0);
+  const spacerM1 = document.createElement('div'); spacerM1.className = 'time-picker-spacer'; mFrag.appendChild(spacerM1);
+  for (let m = 0; m < 60; m++) {
+    const d = document.createElement('div'); d.className = 'time-picker-item'; d.textContent = String(m).padStart(2,'0'); mFrag.appendChild(d);
+  }
+  const spacerM2 = document.createElement('div'); spacerM2.className = 'time-picker-spacer'; mFrag.appendChild(spacerM2);
+
+  hEl.innerHTML = ''; hEl.appendChild(hFrag);
+  mEl.innerHTML = ''; mEl.appendChild(mFrag);
+
+  setPickerScroll(name, 6, 0);
 }
 
-function capitalize(str) {
-    return str.charAt(0).toUpperCase() + str.slice(1);
-}
-
-/* تمرير السكرول لتحديد الساعة والدقيقة */
 function setPickerScroll(name, hour, minute) {
-    const hEl = document.getElementById('hours'   + capitalize(name));
-    const mEl = document.getElementById('minutes' + capitalize(name));
-    /* كل عنصر ارتفاعه 40px، والـ spacer الأول يعوض عدم وجود عنصر قبل أول عنصر */
-    hEl.scrollTop = (hour - 1) * 40;
-    mEl.scrollTop = minute * 40;
-    updatePickerHighlight(name);
-    updateTimePreview(name);
+  const hEl = document.getElementById('hours'   + cap(name));
+  const mEl = document.getElementById('minutes' + cap(name));
+  hEl.scrollTop = (hour - 1) * 40;
+  mEl.scrollTop = minute * 40;
+  updatePickerHighlight(name);
+  updateTimePreview(name);
 }
 
-/* تحديث تمييز العنصر المحدد بناءً على موضع السكرول */
 function syncPicker(name) {
-    updatePickerHighlight(name);
-    updateTimePreview(name);
+  updatePickerHighlight(name);
+  updateTimePreview(name);
 }
 
 function updatePickerHighlight(name) {
-    const hEl = document.getElementById('hours'   + capitalize(name));
-    const mEl = document.getElementById('minutes' + capitalize(name));
-
-    const hIdx = Math.round(hEl.scrollTop / 40); // 0 = الساعة 1
-    const mIdx = Math.round(mEl.scrollTop / 40); // 0 = الدقيقة 00
-
-    pickerState[name].hour   = hIdx + 1;
-    pickerState[name].minute = mIdx;
-
-    /* تلوين العناصر */
-    hEl.querySelectorAll('.time-picker-item').forEach((el, i) => {
-        el.classList.toggle('selected', i === hIdx);
-    });
-    mEl.querySelectorAll('.time-picker-item').forEach((el, i) => {
-        el.classList.toggle('selected', i === mIdx);
-    });
+  const hEl = document.getElementById('hours'   + cap(name));
+  const mEl = document.getElementById('minutes' + cap(name));
+  const hIdx = Math.round(hEl.scrollTop / 40);
+  const mIdx = Math.round(mEl.scrollTop / 40);
+  pickerState[name].hour   = hIdx + 1;
+  pickerState[name].minute = mIdx;
+  hEl.querySelectorAll('.time-picker-item').forEach((el,i) => el.classList.toggle('selected', i === hIdx));
+  mEl.querySelectorAll('.time-picker-item').forEach((el,i) => el.classList.toggle('selected', i === mIdx));
 }
 
-/* تحديث عرض الوقت المختار فوق المنتقي */
 function updateTimePreview(name) {
-    const s = pickerState[name];
-    if (s.hour === null) return;
-    const h = String(s.hour).padStart(2, '0');
-    const m = String(s.minute).padStart(2, '0');
-    const suffix = s.ampm === 'AM' ? 'ص' : 'م';
-    document.getElementById('preview' + capitalize(name)).textContent = `${h}:${m} ${suffix}`;
+  const s = pickerState[name];
+  if (s.hour === null) return;
+  const suffix = s.ampm === 'AM' ? 'ص' : 'م';
+  document.getElementById('preview' + cap(name)).textContent =
+    `${String(s.hour).padStart(2,'0')}:${String(s.minute).padStart(2,'0')} ${suffix}`;
 }
 
-/* تبديل الفترة (صباح / مساء) */
 function setAmPm(name, val) {
-    pickerState[name].ampm = val;
-    const container = document.getElementById('ampm' + capitalize(name));
-    container.querySelectorAll('.time-ampm-option').forEach(btn => {
-        const btnVal = btn.textContent === 'ص' ? 'AM' : 'PM';
-        btn.classList.toggle('active', btnVal === val);
-    });
-    updateTimePreview(name);
+  pickerState[name].ampm = val;
+  document.getElementById('ampm' + cap(name)).querySelectorAll('.time-ampm-option').forEach(btn => {
+    btn.classList.toggle('active', (btn.textContent === 'ص' ? 'AM' : 'PM') === val);
+  });
+  updateTimePreview(name);
 }
 
-/* استخراج وقت 24 ساعة من حالة المنتقي */
 function getPickerTime24(name) {
-    const s = pickerState[name];
-    if (s.hour === null) return '';
-    let h = s.hour;
-    if (s.ampm === 'AM' && h === 12) h = 0;
-    if (s.ampm === 'PM' && h !== 12) h += 12;
-    return `${String(h).padStart(2,'0')}:${String(s.minute).padStart(2,'0')}`;
+  const s = pickerState[name];
+  if (s.hour === null) return '';
+  let h = s.hour;
+  if (s.ampm === 'AM' && h === 12) h = 0;
+  if (s.ampm === 'PM' && h !== 12) h += 12;
+  return `${String(h).padStart(2,'0')}:${String(s.minute).padStart(2,'0')}`;
 }
 
-/* ضبط المنتقي من وقت مخزون بصيغة 24 ساعة */
-function setPickerFromTime24(name, time24) {
-    if (!time24) return;
-    const [h24, m] = time24.split(':').map(Number);
-    let h12 = h24 % 12 || 12;
-    const ampm = h24 < 12 ? 'AM' : 'PM';
-    pickerState[name].ampm = ampm;
-    setAmPm(name, ampm);
-    /* تأخير بسيط لضمان بناء العناصر */
-    setTimeout(() => setPickerScroll(name, h12, m), 50);
+function setPickerFromTime24(name, t) {
+  if (!t) return;
+  const [h24, m] = t.split(':').map(Number);
+  const h12 = h24 % 12 || 12;
+  const ampm = h24 < 12 ? 'AM' : 'PM';
+  pickerState[name].ampm = ampm;
+  setAmPm(name, ampm);
+  setTimeout(() => setPickerScroll(name, h12, m), 60);
 }
 
-/* ===== الإشعارات ===== */
-let notifPermission = false;
-let scheduledNotifs = {};
-
+/* ══════════════════════════════
+   الإشعارات
+══════════════════════════════ */
 async function requestNotifPermission() {
-    if (!('Notification' in window)) return false;
-    if (Notification.permission === 'granted') { notifPermission = true; return true; }
-    if (Notification.permission !== 'denied') {
-        const perm = await Notification.requestPermission();
-        notifPermission = perm === 'granted';
-        return notifPermission;
-    }
-    return false;
+  if (!('Notification' in window)) return false;
+  if (Notification.permission === 'granted') return true;
+  if (Notification.permission !== 'denied') {
+    return (await Notification.requestPermission()) === 'granted';
+  }
+  return false;
 }
 
 function scheduleNotification(type, timeStr) {
-    if (!timeStr || !notifPermission) return;
-    const [h, m] = timeStr.split(':').map(Number);
-    const now = new Date();
-    let target = new Date();
-    target.setHours(h, m, 0, 0);
-    if (target <= now) target.setDate(target.getDate() + 1);
-    const delay = target - now;
+  if (!timeStr) return;
+  const [h, m] = timeStr.split(':').map(Number);
+  const now    = new Date();
+  const target = new Date();
+  target.setHours(h, m, 0, 0);
+  if (target <= now) target.setDate(target.getDate() + 1);
+  const delay = target - now;
 
-    if (scheduledNotifs[type]) clearTimeout(scheduledNotifs[type]);
+  if (scheduledNotifs[type]) clearTimeout(scheduledNotifs[type]);
 
-    const labels = {
-        morning: { title: 'درب المسلم 🌤️', body: 'حان وقت أذكار الصباح! لا تنسَ ذكر الله.' },
-        evening: { title: 'درب المسلم 🌙', body: 'حان وقت أذكار المساء! اختم يومك بذكر الله.' },
-        quran:   { title: 'درب المسلم 📖', body: 'تذكير ورد القرآن الكريم!' }
-    };
+  const labels = {
+    morning: {title:'درب المسلم', body:'حان وقت أذكار الصباح! لا تنسَ ذكر الله.'},
+    evening: {title:'درب المسلم', body:'حان وقت أذكار المساء! اختم يومك بذكر الله.'},
+    quran:   {title:'درب المسلم', body:'تذكير بورد القرآن الكريم!'}
+  };
 
-    scheduledNotifs[type] = setTimeout(function fire() {
-        if (Notification.permission === 'granted') {
-            new Notification(labels[type].title, {
-                body: labels[type].body,
-                icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🕌</text></svg>',
-                badge: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">📿</text></svg>'
-            });
-        }
-        /* إعادة الجدولة لليوم التالي */
-        scheduledNotifs[type] = setTimeout(fire, 24 * 60 * 60 * 1000);
-    }, delay);
+  scheduledNotifs[type] = setTimeout(function fire() {
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.ready.then(reg => {
+        reg.showNotification(labels[type].title, {
+          body:    labels[type].body,
+          vibrate: [200, 100, 200],
+          requireInteraction: true
+        });
+      });
+    } else if (Notification.permission === 'granted') {
+      new Notification(labels[type].title, {body: labels[type].body});
+    }
+    scheduledNotifs[type] = setTimeout(fire, 86400000);
+  }, delay);
 }
 
 async function saveSettings() {
-    const morning = getPickerTime24('morning');
-    const evening = getPickerTime24('evening');
-    const quran   = getPickerTime24('quran');
+  const morning = getPickerTime24('morning');
+  const evening = getPickerTime24('evening');
+  const quran   = getPickerTime24('quran');
 
+  try {
     localStorage.setItem('timeMorning', morning);
     localStorage.setItem('timeEvening', evening);
     localStorage.setItem('timeQuran',   quran);
+  } catch(e) {}
 
-    const granted = await requestNotifPermission();
-    closeModal('settingsModal');
+  const granted = await requestNotifPermission();
+  closeModal('settingsModal');
 
-    if (!granted) {
-        showAlert('⚠️', 'تنبيه', 'لم يتم منح إذن الإشعارات. يرجى السماح بالإشعارات من إعدادات المتصفح لتفعيل التذكيرات.');
-        return;
-    }
+  if (!granted) {
+    showAlert('⚠', 'تنبيه', 'يرجى السماح بالإشعارات من إعدادات المتصفح لتفعيل التذكيرات.');
+    return;
+  }
 
-    if (morning) scheduleNotification('morning', morning);
-    if (evening) scheduleNotification('evening', evening);
-    if (quran)   scheduleNotification('quran', quran);
+  if (morning) scheduleNotification('morning', morning);
+  if (evening) scheduleNotification('evening', evening);
+  if (quran)   scheduleNotification('quran',   quran);
 
-    document.getElementById('notifBadge').style.display = 'block';
-    showToast('✅ تم حفظ التذكيرات وتفعيلها');
+  document.getElementById('notifBadge').style.display = 'block';
+  showToast('تم حفظ التذكيرات وتفعيلها');
 }
 
 function loadSavedSettings() {
-    const m = localStorage.getItem('timeMorning');
-    const e = localStorage.getItem('timeEvening');
-    const q = localStorage.getItem('timeQuran');
+  buildTimePicker('morning');
+  buildTimePicker('evening');
+  buildTimePicker('quran');
 
-    /* بناء المنتقيات أولاً */
-    buildTimePicker('morning');
-    buildTimePicker('evening');
-    buildTimePicker('quran');
+  const m = localStorage.getItem('timeMorning');
+  const e = localStorage.getItem('timeEvening');
+  const q = localStorage.getItem('timeQuran');
 
-    /* ضبط القيم المحفوظة إن وجدت */
-    if (m) setPickerFromTime24('morning', m);
-    if (e) setPickerFromTime24('evening', e);
-    if (q) setPickerFromTime24('quran', q);
+  if (m) setPickerFromTime24('morning', m);
+  if (e) setPickerFromTime24('evening', e);
+  if (q) setPickerFromTime24('quran',   q);
 
-    if (m || e || q) {
-        document.getElementById('notifBadge').style.display = 'block';
-        requestNotifPermission().then(granted => {
-            if (granted) {
-                if (m) scheduleNotification('morning', m);
-                if (e) scheduleNotification('evening', e);
-                if (q) scheduleNotification('quran', q);
-            }
-        });
-    }
+  if (m || e || q) {
+    document.getElementById('notifBadge').style.display = 'block';
+    requestNotifPermission().then(granted => {
+      if (!granted) return;
+      if (m) scheduleNotification('morning', m);
+      if (e) scheduleNotification('evening', e);
+      if (q) scheduleNotification('quran',   q);
+    });
+  }
 }
 
-/* ===== المصحف الكريم ===== */
-let allSurahs = [];
-let currentSurahAyahs = [];
-let currentSurahName = '';
-const AYAHS_PER_PAGE = 30;
-let currentSurahPage = 1;
-let totalSurahPages = 1;
+/* ══════════════════════════════
+   المصحف الكريم
+══════════════════════════════ */
+let allSurahs          = [];
+let currentSurahAyahs  = [];
+let currentSurahName   = '';
+let currentSurahPage   = 1;
+let totalSurahPages    = 1;
+const surahCache       = new Map(); /* كاش للسور المحمّلة */
+const AYAHS_PER_PAGE   = 30;
 
 async function fetchSurahs() {
-    try {
-        const res = await fetch('https://api.alquran.cloud/v1/surah');
-        const data = await res.json();
-        allSurahs = data.data;
-        renderSurahs(allSurahs);
-    } catch(e) {
-        document.getElementById('surahList').innerHTML = '<p class="text-center opacity-50 text-sm">تعذّر تحميل قائمة السور. تأكد من اتصالك بالإنترنت.</p>';
-    }
+  const listEl = document.getElementById('surahList');
+  listEl.innerHTML = '<p class="text-center opacity-50 text-sm py-8">جاري التحميل...</p>';
+  try {
+    const res  = await fetch('https://api.alquran.cloud/v1/surah');
+    const data = await res.json();
+    allSurahs  = data.data;
+    renderSurahs(allSurahs);
+  } catch(e) {
+    listEl.innerHTML = '<p class="text-center opacity-50 text-sm py-8">تعذّر التحميل. تحقق من الاتصال.</p>';
+  }
 }
 
 function renderSurahs(list) {
-    document.getElementById('surahList').innerHTML = list.map(s => `
-        <div onclick="openSurah(${s.number}, '${s.name}')"
-             class="p-4 bg-white/55 dark:bg-gray-800/55 backdrop-blur-md rounded-2xl mb-2 text-right flex justify-between items-center border border-white/40 dark:border-white/05 glow-hover transition-all cursor-pointer">
-            <span class="font-bold">${s.number}. ${s.name}</span>
-            <span class="text-xs opacity-50">${s.numberOfAyahs} آية</span>
-        </div>`).join('');
+  const listEl = document.getElementById('surahList');
+  const frag   = document.createDocumentFragment();
+
+  list.forEach(s => {
+    const div = document.createElement('div');
+    div.className = 'p-4 bg-white/55 dark:bg-gray-800/55 backdrop-blur-md rounded-2xl mb-2 text-right flex justify-between items-center border border-white/40 dark:border-white/5 cursor-pointer transition-all';
+    div.dataset.num  = s.number;
+    div.dataset.name = s.name;
+    div.innerHTML = `
+      <span class="font-bold">${s.number}. ${s.name}</span>
+      <span class="text-xs opacity-50">${s.numberOfAyahs} آية</span>`;
+    frag.appendChild(div);
+  });
+
+  listEl.innerHTML = '';
+  listEl.appendChild(frag);
+
+  /* تفويض الحدث - مستمع واحد فقط */
+  listEl.onclick = e => {
+    const div = e.target.closest('[data-num]');
+    if (div) openSurah(parseInt(div.dataset.num, 10), div.dataset.name);
+  };
 }
 
 async function openSurah(id, name) {
-    showPage('surahView');
-    currentSurahName = name;
-    currentSurahPage = 1;
-    document.getElementById('surahViewTitle').textContent = name;
-    document.getElementById('surahContent').innerHTML = `<div class="text-center py-10 opacity-60 text-sm">جاري تحميل السورة...</div>`;
-    document.getElementById('surahPagination').innerHTML = '';
+  showPage('surahView');
+  currentSurahName = name;
+  currentSurahPage = 1;
+  document.getElementById('surahViewTitle').textContent = name;
+  document.getElementById('surahContent').innerHTML    = '<div class="text-center py-10 opacity-60 text-sm">جاري تحميل السورة...</div>';
+  document.getElementById('surahPagination').innerHTML = '';
 
-    try {
-        const res = await fetch(`https://api.alquran.cloud/v1/surah/${id}`);
-        const data = await res.json();
-        currentSurahAyahs = data.data.ayahs;
-        totalSurahPages = Math.ceil(currentSurahAyahs.length / AYAHS_PER_PAGE);
-        renderSurahPage(1);
-    } catch(e) {
-        document.getElementById('surahContent').innerHTML = '<p class="text-center opacity-50">تعذّر تحميل السورة.</p>';
+  try {
+    /* التحقق من الكاش أولاً */
+    if (surahCache.has(id)) {
+      currentSurahAyahs = surahCache.get(id);
+    } else {
+      const res  = await fetch(`https://api.alquran.cloud/v1/surah/${id}`);
+      const data = await res.json();
+      currentSurahAyahs = data.data.ayahs;
+      surahCache.set(id, currentSurahAyahs); /* حفظ في الكاش */
     }
+    totalSurahPages = Math.ceil(currentSurahAyahs.length / AYAHS_PER_PAGE);
+    renderSurahPage(1);
+  } catch(e) {
+    document.getElementById('surahContent').innerHTML = '<p class="text-center opacity-50 py-8">تعذّر تحميل السورة.</p>';
+  }
 }
 
 function renderSurahPage(page) {
-    currentSurahPage = page;
-    const start = (page - 1) * AYAHS_PER_PAGE;
-    const end = Math.min(start + AYAHS_PER_PAGE, currentSurahAyahs.length);
-    const ayahs = currentSurahAyahs.slice(start, end);
+  currentSurahPage = page;
+  const start = (page - 1) * AYAHS_PER_PAGE;
+  const end   = Math.min(start + AYAHS_PER_PAGE, currentSurahAyahs.length);
+  const ayahs = currentSurahAyahs.slice(start, end);
 
-    /* ترتيب العرض الصحيح: اسم السورة أولاً ثم البسملة ثم الآيات */
-    let html = `<h2 class="text-center mb-4 text-emerald-600 font-bold text-xl">${currentSurahName}</h2>`;
+  let html = `<h2 class="text-center mb-3 text-emerald-600 font-bold text-xl">${currentSurahName}</h2>`;
 
-    if (page === 1) {
-        const firstText = currentSurahAyahs[0]?.text || '';
-        const hasBismillah = firstText.includes('بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ');
-        /* عرض البسملة بعد اسم السورة لكل السور ما عدا التوبة والفاتحة */
-        if (!hasBismillah) {
-            html += `<div class="text-center text-2xl quran-font mb-4 text-emerald-700 dark:text-emerald-400 py-2 border-b border-emerald-100 dark:border-emerald-900/30">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>`;
-        }
+  if (page === 1) {
+    const hasBismillah = (currentSurahAyahs[0]?.text || '').includes('بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ');
+    if (!hasBismillah) {
+      html += `<div class="text-center text-2xl quran-font mb-4 text-emerald-700 dark:text-emerald-400 py-2 border-b border-emerald-100 dark:border-emerald-900/30">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>`;
     }
+  }
 
-    html += ayahs.map(a => `${a.text} ﴿${a.numberInSurah}﴾`).join(' ');
+  html += ayahs.map(a => `${a.text} ﴿${a.numberInSurah}﴾`).join(' ');
 
-    /* معلومات الصفحة الحالية */
-    if (totalSurahPages > 1) {
-        html += `<div class="text-center text-xs opacity-50 mt-6 pt-4 border-t border-gray-200/50">صفحة ${page} من ${totalSurahPages}</div>`;
-    }
+  if (totalSurahPages > 1) {
+    html += `<div class="text-center text-xs opacity-50 mt-5 pt-4 border-t border-gray-200/50">صفحة ${page} من ${totalSurahPages}</div>`;
+  }
 
-    document.getElementById('surahContent').innerHTML = html;
-    window.scrollTo(0, 0);
-    renderSurahPagination();
+  document.getElementById('surahContent').innerHTML = html;
+  window.scrollTo(0, 0);
+  renderSurahPagination();
 }
 
 function renderSurahPagination() {
-    if (totalSurahPages <= 1) {
-        document.getElementById('surahPagination').innerHTML = '';
-        return;
-    }
-    let btns = '';
-    for (let i = 1; i <= totalSurahPages; i++) {
-        btns += `<button onclick="renderSurahPage(${i})" class="surah-page-btn ${i === currentSurahPage ? 'current' : ''}">${i}</button>`;
-    }
-    const prevDisabled = currentSurahPage <= 1;
-    const nextDisabled = currentSurahPage >= totalSurahPages;
-    const nav = `
-        <div class="w-full flex justify-between items-center mt-2">
-            <button onclick="${nextDisabled ? '' : `renderSurahPage(${currentSurahPage + 1})`}" class="surah-page-btn ${nextDisabled ? 'opacity-30 cursor-not-allowed' : ''}">التالية ›</button>
-            <span class="text-xs opacity-50">${currentSurahPage} / ${totalSurahPages}</span>
-            <button onclick="${prevDisabled ? '' : `renderSurahPage(${currentSurahPage - 1})`}" class="surah-page-btn ${prevDisabled ? 'opacity-30 cursor-not-allowed' : ''}">‹ السابقة</button>
-        </div>`;
-    document.getElementById('surahPagination').innerHTML = btns + nav;
+  const pag = document.getElementById('surahPagination');
+  if (totalSurahPages <= 1) { pag.innerHTML = ''; return; }
+
+  const frag = document.createDocumentFragment();
+
+  for (let i = 1; i <= totalSurahPages; i++) {
+    const btn = document.createElement('button');
+    btn.className  = `surah-page-btn${i === currentSurahPage ? ' current' : ''}`;
+    btn.textContent = i;
+    btn.dataset.page = i;
+    frag.appendChild(btn);
+  }
+
+  const nav = document.createElement('div');
+  nav.className = 'w-full flex justify-between items-center mt-2';
+  nav.innerHTML = `
+    <button data-page="${currentSurahPage < totalSurahPages ? currentSurahPage + 1 : ''}"
+      class="surah-page-btn${currentSurahPage >= totalSurahPages ? ' opacity-30 cursor-not-allowed' : ''}">التالية ›</button>
+    <span class="text-xs opacity-50">${currentSurahPage} / ${totalSurahPages}</span>
+    <button data-page="${currentSurahPage > 1 ? currentSurahPage - 1 : ''}"
+      class="surah-page-btn${currentSurahPage <= 1 ? ' opacity-30 cursor-not-allowed' : ''}">‹ السابقة</button>`;
+  frag.appendChild(nav);
+
+  pag.innerHTML = '';
+  pag.appendChild(frag);
+
+  pag.onclick = e => {
+    const btn = e.target.closest('[data-page]');
+    if (!btn || !btn.dataset.page) return;
+    renderSurahPage(parseInt(btn.dataset.page, 10));
+  };
 }
 
 function filterSurahs() {
-    const q = document.getElementById('searchSurah').value;
-    renderSurahs(allSurahs.filter(s => s.name.includes(q) || s.englishName.includes(q)));
+  const q = document.getElementById('searchSurah').value.toLowerCase();
+  renderSurahs(allSurahs.filter(s =>
+    s.name.includes(q) || s.englishName.toLowerCase().includes(q)
+  ));
 }
 
-/* ===== سلايدر حجم الخط التفاعلي مع الفقاعة ===== */
+/* ══════════════════════════════
+   سلايدر حجم الخط
+══════════════════════════════ */
 function buildFontSlider() {
-    const dotsEl = document.getElementById('sliderDots');
-    dotsEl.innerHTML = fontSizes.map((_, i) => `<div class="slider-dot" id="dot${i}"></div>`).join('');
-    updateFontSliderUI(currentFontIdx);
+  const dotsEl = document.getElementById('sliderDots');
+  dotsEl.innerHTML = FONT_SIZES.map((_,i) => `<div class="slider-dot" id="dot${i}"></div>`).join('');
+  document.getElementById('fontSizeRange').value = currentFontIdx;
+  updateFontSliderUI(currentFontIdx);
 }
 
 function onFontSliderChange(val) {
-    currentFontIdx = parseInt(val);
-    localStorage.setItem('quranFontIdx', currentFontIdx);
-    applyQuranFont();
-    updateFontSliderUI(currentFontIdx);
+  currentFontIdx = parseInt(val, 10);
+  try { localStorage.setItem('quranFontIdx', currentFontIdx); } catch(e) {}
+  applyQuranFont();
+  updateFontSliderUI(currentFontIdx);
 }
 
 function applyQuranFont() {
-    document.documentElement.style.setProperty('--font-size-quran', fontSizes[currentFontIdx].size);
-    /* تحديث مثال الحجم */
-    const preview = document.getElementById('fontSizePreviewText');
-    if (preview) preview.style.fontSize = fontSizes[currentFontIdx].size;
+  document.documentElement.style.setProperty('--font-quran', FONT_SIZES[currentFontIdx].size);
+  const prev = document.getElementById('fontSizePreviewText');
+  if (prev) prev.style.fontSize = FONT_SIZES[currentFontIdx].size;
 }
 
 function updateFontSliderUI(idx) {
-    const total = fontSizes.length - 1;
-    
-    /* حساب النسبة بشكل مباشر من اليسار لليمين */
-    const pct = (idx / total) * 100;
-    document.getElementById('sliderFill').style.width = `${pct}%`;
-
-    /* تحريك الفقاعة من اليسار */
-    const bubble = document.getElementById('sliderBubble');
-    bubble.style.left = `calc(${pct}%)`; 
-    bubble.style.right = 'auto'; /* لتنظيف أي قيم سابقة */
-    bubble.textContent = fontSizes[idx].label;
-
-    /* تحديث النقاط */
-    fontSizes.forEach((_, i) => {
-        const dot = document.getElementById('dot' + i);
-        if (dot) dot.classList.toggle('active', i <= idx);
-    });
+  const pct = (idx / (FONT_SIZES.length - 1)) * 100;
+  document.getElementById('sliderFill').style.width  = `${pct}%`;
+  const bubble = document.getElementById('sliderBubble');
+  bubble.style.left = `${pct}%`;
+  bubble.textContent = FONT_SIZES[idx].label;
+  FONT_SIZES.forEach((_, i) => {
+    const dot = document.getElementById('dot' + i);
+    if (dot) dot.classList.toggle('active', i <= idx);
+  });
 }
-/* ===== التهيئة الرئيسية ===== */
+
+/* ══════════════════════════════
+   التهيئة الرئيسية
+══════════════════════════════ */
 function init() {
-    /* تحديد التاريخ الهجري والميلادي */
-    const now = new Date();
-    const days = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
-    const hijri = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', {day:'numeric', month:'long', year:'numeric'}).format(now);
-    const miladi = new Intl.DateTimeFormat('ar-SA-u-ca-gregory', {day:'numeric', month:'long', year:'numeric'}).format(now);
-    const hijriClean = hijri.replace('هـ','').trim();
-    document.getElementById('fullDate').innerHTML = `${days[now.getDay()]} <br> ${hijriClean} هـ <br> ${miladi} م`;
+  /* بيانات الوقت */
+  const now   = new Date();
+  const days  = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+  const hijri = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', {day:'numeric',month:'long',year:'numeric'}).format(now);
+  const miladi= new Intl.DateTimeFormat('ar-SA-u-ca-gregory',          {day:'numeric',month:'long',year:'numeric'}).format(now);
+  document.getElementById('fullDate').innerHTML =
+    `${days[now.getDay()]} <br> ${hijri} <br> ${miladi}`;
 
-    /* اختيار آية عشوائية */
-    document.getElementById('randomAyah').innerText = motivationalTexts[Math.floor(Math.random() * motivationalTexts.length)];
+  /* آية عشوائية */
+  document.getElementById('randomAyah').textContent =
+    MOTIVATIONAL[Math.floor(Math.random() * MOTIVATIONAL.length)];
 
-    /* تطبيق الوضع الليلي المحفوظ */
-    if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
+  /* الوضع الليلي */
+  if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
 
-    applyProfileData();
-    renderMissedTasks();
-    renderAzkar();
-    updateStats();
-    loadSavedSettings();
+  /* تهيئة البيانات */
+  loadStorage();
+  checkDailyReset();
+  initTasks();
 
-    /* بناء سلايدر الخط وتطبيق الحجم المحفوظ */
-    buildFontSlider();
-    applyQuranFont();
+  /* عرض المحتوى */
+  applyProfileData();
+  renderMissedTasks();
+  renderAzkar();
+  updateStats();
+  loadSavedSettings();
 
-    /* دفع الحالة الأولية في المتصفح */
-    window.history.replaceState({ page: 'homePage' }, '', '');
+  /* سلايدر الخط */
+  buildFontSlider();
+  applyQuranFont();
+
+  /* حالة المتصفح */
+  window.history.replaceState({page:'homePage'}, '', '');
 }
 
 init();
-fetchSurahs();
 </script>
-    <script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      // أضفنا رقم إصدار في نهاية الرابط لإجبار المتصفح على قراءته كملف جديد
-      navigator.serviceWorker.register('./sw.js?v=2')
-        .then(registration => {
-          console.log('تم تسجيل Service Worker بنجاح');
-        })
-        .catch(error => {
-          console.log('فشل تسجيل Service Worker:', error);
-        });
-    });
-  }
+
+<!-- Service Worker -->
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js?v=3').catch(() => {});
+  });
+}
 </script>
 </body>
 </html>
