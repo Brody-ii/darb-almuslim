@@ -1580,18 +1580,30 @@ function scheduleNotification(type, timeStr) {
     quran:   {title:'درب المسلم', body:'تذكير بورد القرآن الكريم!'}
   };
 
-  scheduledNotifs[type] = setTimeout(function fire() {
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-      navigator.serviceWorker.ready.then(reg => {
-        reg.showNotification(labels[type].title, {
-          body:    labels[type].body,
-          vibrate: [200, 100, 200],
-          requireInteraction: true
-        });
-      });
-    } else if (Notification.permission === 'granted') {
-      new Notification(labels[type].title, {body: labels[type].body});
+  scheduledNotifs[type] = setTimeout(async function fire() {
+    const opts = {
+      body: labels[type].body,
+      icon: '/icon-192.png',  // تأكد من وجود الأيقونة
+      vibrate: [200, 100, 200],
+      requireInteraction: true
+    };
+
+    try {
+      // الطريقة الأولى: عبر Service Worker (الأفضل)
+      if ('serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.ready;
+        await reg.showNotification(labels[type].title, opts);
+      } else {
+        // الطريقة البديلة
+        new Notification(labels[type].title, opts);
+      }
+    } catch(err) {
+      console.warn('فشل الإشعار:', err);
+      // محاولة أخيرة
+      try { new Notification(labels[type].title, opts); } catch(_) {}
     }
+
+    // جدولة اليوم التالي
     scheduledNotifs[type] = setTimeout(fire, 86400000);
   }, delay);
 }
@@ -1869,7 +1881,7 @@ init();
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js?v=3').catch(() => {});
+    navigator.serviceWorker.register('./sw.js?v=4').catch(() => {});
   });
 }
 </script>
