@@ -1,4 +1,4 @@
-const CACHE_NAME = 'darb-almuslim-v3'; // تم تغيير الإصدار لضمان تحديث الكاش
+const CACHE_NAME = 'darb-almuslim-v4'; // تم تغيير الإصدار لضمان تحديث الكاش
 
 // الملفات الأساسية التي يجب حفظها فور تثبيت التطبيق
 const urlsToCache = [
